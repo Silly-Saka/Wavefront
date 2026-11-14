@@ -15,6 +15,68 @@
         "rays": "%s rays",
         "chunks": "%s chunks"
       }
+    },
+    "screen": {
+      "title": "Wavefront",
+      "quality": {
+        "performance": "Performance",
+        "performance.tip": "Lightest. 100 rays, 1 diffraction route out to 24 blocks. For slower computers.",
+        "balanced": "Balanced",
+        "balanced.tip": "In between. 200 rays, 3 diffraction routes out to 32 blocks.",
+        "realism": "Realism",
+        "realism.tip": "Most thorough, and the default. 500 rays, 4 diffraction routes out to 64 blocks, sounds re-checked 5 times a second.",
+        "custom": "Custom",
+        "custom.tip": "Your own values. Changing rays, bounces, routes or range switches to this automatically."
+      },
+      "more": "Show details",
+      "less": "Hide details",
+      "on": "ON",
+      "off": "OFF",
+      "expert": "Expert tuning",
+      "expert.tip": "Every setting in one long list, including the reverb fine-tuning values.",
+      "done": "Done",
+      "realism": "Realism: ",
+      "performance": "Performance: ",
+      "strength": "Strength: %s",
+      "physics": "Sound Physics: %s",
+      "loss": "Loss: %s",
+      "routes": "Routes: %s",
+      "range": "Range: %s blocks",
+      "rays": "Rays: %s",
+      "bounces": "Bounces: %s",
+      "voice_volume": "Quieter through walls: %s",
+      "voice_reverb": "Voice reverb: %s",
+      "voice_self": "Hear own reverb: %s",
+      "topic": {
+        "walls": {
+          "title": "Walls",
+          "summary": "How much blocks muffle sound. 1.0 is real-world strength.",
+          "summary_off": "Sound Physics is off: using the classic method.",
+          "realism": "1.0 uses the researched value for each material. One stone block takes off about 35 dB.",
+          "performance": "No effect."
+        },
+        "diffraction": {
+          "title": "Diffraction",
+          "summary": "Sound bends round corners and through openings.",
+          "summary_off": "Blocked sounds are only heard through walls.",
+          "realism": "Without it a sound behind a free-standing wall is almost muted. Most realistic: ON, loss 1.0, 4 routes, range 64.",
+          "performance": "Each blocked sound is searched for ways round. Fastest: OFF, or 1 route."
+        },
+        "reverb": {
+          "title": "Reverb",
+          "summary": "Echo that matches the space you are in.",
+          "summary_off": "No echo.",
+          "realism": "More rays measure the space more steadily. Most realistic: ON, 500 rays, 3 bounces.",
+          "performance": "Cost grows with rays and bounces. Fastest: OFF."
+        },
+        "voice": {
+          "title": "Voice chat",
+          "summary": "Other players' voices get the same physics.",
+          "summary_off": "Voices ignore walls.",
+          "realism": "Voices are sound like any other. Most realistic: ON, with both extras ON. Needs Simple Voice Chat.",
+          "performance": "Each speaking player is re-checked four times a second. Fastest: OFF."
+        }
+      }
     }
   },
   "yacl3.config": {

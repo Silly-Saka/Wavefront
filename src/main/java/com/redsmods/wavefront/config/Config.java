@@ -45,6 +45,24 @@ public class Config {
     // ----- Quality presets -----
     // Performance, Balanced and Realism replace the Performance tab's values; Custom uses them as set.
 
+    /**
+     * Called when the player changes a value that a preset controls: copies the preset's
+     * values into the Custom fields, then switches to Custom so the change takes effect.
+     */
+    public void switchToCustom() {
+        if (qualityPreset == QualityPreset.CUSTOM) return;
+        int rays = rays(), bounces = bounces(), length = rayLength(), ticks = updateTicks();
+        int routes = routes(), range = bendRange(), budget = searchBudget();
+        raysCast = rays;
+        raysBounced = bounces;
+        maxRayLength = length;
+        tickRate = ticks;
+        diffractionRoutes = routes;
+        diffractionRange = range;
+        diffractionSearchBudget = budget;
+        qualityPreset = QualityPreset.CUSTOM;
+    }
+
     public int rays() {
         return switch (qualityPreset) { case PERFORMANCE -> 100; case BALANCED -> 200; case REALISM -> 500; default -> raysCast; };
     }

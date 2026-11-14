@@ -12,7 +12,7 @@ import net.fabricmc.api.Environment;
 public class ModMenuIntegration implements ModMenuApi {
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return Config::configScreen;
+        return wavefront.mc.ui.WavefrontScreen::new;
     }
 }
 //?}
