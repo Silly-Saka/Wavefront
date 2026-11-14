@@ -224,6 +224,13 @@ public class SelfTest {
         check("without diffraction the same scene would be 30+ dB down", -20 * Math.log10(throughOnly.gain) > 30,
                 String.format("(%.1f dB)", -20 * Math.log10(throughOnly.gain)));
 
+        // ---------------- path finding: time limit
+        PathFinder late = new PathFinder(w, 6000).deadline(System.nanoTime() - 1);
+        List<PathFinder.Route> lateRoutes = late.findRoutes(src, lis, 3, 8);
+        check("a search whose time is already up finds nothing and says so", lateRoutes.isEmpty() && late.timedOut(), "");
+        PathFinder unhurried = new PathFinder(w, 6000).deadline(System.nanoTime() + 5_000_000_000L);
+        check("a search with time to spare is not marked as cut short", !unhurried.findRoutes(src, lis, 3, 8).isEmpty() && !unhurried.timedOut(), "");
+
         // ---------------- path finding: doorway (friend behind a wall with an opening)
         GridWorld d = new GridWorld();
         d.fill(-20, -1, -20, 20, -1, 20);          // floor

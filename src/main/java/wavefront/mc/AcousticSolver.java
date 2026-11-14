@@ -78,6 +78,13 @@ public final class AcousticSolver {
             this.pathLength = pathLength;
             this.seconds = seconds;
         }
+
+        /**
+         * True if time ran out before the search for ways round obstacles finished, so the sound
+         * may come out quieter than it should. A sound that is already playing ignores such a
+         * result and keeps what it had.
+         */
+        public boolean partial = false;
     }
 
     private static final String DATABASE_RESOURCE = "/assets/wavefront/acoustics/acoustic_materials.json";
@@ -193,6 +200,45 @@ public final class AcousticSolver {
      * Safe to call from the mod's worker threads (it only reads the world, as the ray caster does).
      */
     public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source) {
+        return solve(level, player, listener, source, 0L);
+    }
+
+    /** A recent result, kept briefly so that sounds from the same spot need not all be worked out separately. */
+    private record Recent(Solved result, Vec3 source, Vec3 listener, long at) {}
+
+    private static final Map<Long, Recent> recent = new ConcurrentHashMap<>();
+    private static final long RECENT_NANOS = 1_000_000_000L;
+    private static final double RECENT_LISTENER_MOVE_SQ = 0.5 * 0.5;
+
+    /**
+     * As {@link #solve}, but reuses a result from the last second if it was for the same source
+     * spot and the listener has moved less than half a block since. A note block firing over
+     * and over, with several of its notes still ringing, is then worked out once instead of
+     * once per note. Two threads asking about the same spot share one calculation.
+     *
+     * @param deadline a moment (System.nanoTime) after which searching stops, or 0 for no limit
+     */
+    public static Solved solveShared(Level level, Player player, Vec3 listener, Vec3 source, long deadline) {
+        long key = BlockPos.asLong((int) Math.floor(source.x * 4), (int) Math.floor(source.y * 4), (int) Math.floor(source.z * 4));
+        if (recent.size() > 512) {
+            long cutoff = System.nanoTime() - 5 * RECENT_NANOS;
+            recent.values().removeIf(r -> r.at() < cutoff);
+        }
+        return recent.compute(key, (k, old) -> {
+            long now = System.nanoTime();
+            if (old != null && !old.result().partial && now - old.at() < RECENT_NANOS
+                    && old.source().distanceToSqr(source) < 0.1 && old.listener().distanceToSqr(listener) < RECENT_LISTENER_MOVE_SQ) {
+                return old;
+            }
+            return new Recent(solve(level, player, listener, source, deadline), source, listener, now);
+        }).result();
+    }
+
+    /**
+     * @param deadline a moment (System.nanoTime) after which the search for ways round obstacles
+     *                 stops, or 0 for no limit. A result cut short this way is marked partial.
+     */
+    public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source, long deadline) {
         float straight = (float) listener.distanceTo(source);
         AcousticDatabase db = database();
         if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, 1f, straight, straight / 343f);
@@ -219,11 +265,17 @@ public final class AcousticSolver {
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
+        boolean partial = false;
         if (cfg.diffraction && midThrough < 0.25 && straight <= cfg.bendRange()) {
+            // No time left this round: leave the search out and say so.
+            partial = deadline != 0L && System.nanoTime() > deadline;
+        }
+        if (cfg.diffraction && midThrough < 0.25 && straight <= cfg.bendRange() && !partial) {
             WorldView view = new WorldView(level, player, db, sourceCell);
             int margin = Math.max(6, Math.min(16, (int) (straight / 2) + 4));
-            List<PathFinder.Route> routes = new PathFinder(view, cfg.searchBudget())
-                    .findRoutes(src, lis, cfg.routes(), margin);
+            PathFinder finder = new PathFinder(view, cfg.searchBudget()).deadline(deadline);
+            List<PathFinder.Route> routes = finder.findRoutes(src, lis, cfg.routes(), margin);
+            partial = finder.timedOut();
             for (PathFinder.Route route : routes) {
                 if (route.bends == 0) continue; // a clear straight line is already covered above
                 // A doorway or small hole can only pass the sound that lands on it.
@@ -239,7 +291,9 @@ public final class AcousticSolver {
             }
         }
 
-        return finish(listener, lis, src, arrivals, cfg, listenerIn);
+        Solved result = finish(listener, lis, src, arrivals, cfg, listenerIn);
+        result.partial = partial;
+        return result;
     }
 
     /** Lets the air take its share from every arrival, then merges them into one result. */

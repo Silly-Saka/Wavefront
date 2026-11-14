@@ -96,7 +96,7 @@ public class WavefrontScreen extends Screen {
                         "permeationAbsorption", "maxBlocksPermeated", "permeationStepSize", "attenuationType",
                         "shortcutDirectionality", "barrierAsAir")))));
         out.add(topic(placed, "diffraction", "diffraction",
-                List.of("diffractionStrength", "openingSize", "diffractionRoutes", "diffractionRange", "diffractionSearchBudget"), List.of()));
+                List.of("diffractionStrength", "openingSize", "diffractionRoutes", "diffractionRange", "diffractionSearchBudget", "searchTimeMs"), List.of()));
 
         out.add(topic(placed, "distance", "soundDelay",
                 List.of("airAbsorptionStrength", "doppler", "dopplerStrength", "echoes", "echoContinuous", "echoRough", "echoStrength", "echoCount", "echoRange"), List.of()));

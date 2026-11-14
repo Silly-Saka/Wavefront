@@ -70,7 +70,12 @@ public class RaycastingHelper {
     public static final Queue<SoundData> soundQueue = new LinkedList<>();
     public static final ArrayList<SoundInstance> notProcd = new ArrayList<>();
     private static final double SPEED_OF_SOUND_TICKS = 17.15; // 17.15 blocks per gametick
-    private static final Map<Integer,ArrayList<SoundInstance>> soundPlayingWaiting = new ConcurrentHashMap<>();
+    /** Wavefront: sounds that have been worked out and are waiting to be started, filled from the worker threads. */
+    private static final Queue<SoundInstance> soundsReady = new ConcurrentLinkedQueue<>();
+    /** Wavefront: the calculations of the current round still running, or null between rounds. */
+    private static volatile List<CompletableFuture<Void>> soundTasks;
+    /** Wavefront: the moment (System.nanoTime) after which this round stops searching for ways round obstacles. */
+    private static volatile long roundDeadline = 0L;
     private static int ticksSinceWorld;
 
     // Reverb Stuff
@@ -167,10 +172,12 @@ public class RaycastingHelper {
             redRaysToTarget.clear(); // wow, this was the issue? I feel like a real dumbass now D:
             rayTasks = null;
             isRaytracing.set(false);
+            settleWaitingSounds();
 
         } catch (Exception e) {
             // Reset state so one failure doesn't permanently disable raytracing.
             rayTasks = null;
+            soundTasks = null;
             isRaytracing.set(false);
             rayHitsByEntity.clear();
             redRaysToTarget.clear();
@@ -179,21 +186,33 @@ public class RaycastingHelper {
         }
     }
 
+    /**
+     * Wavefront: a round has finished, so every sound handed in before it started has been dealt
+     * with. Sounds still marked as waiting are forgotten, except those queued for the next round.
+     */
+    private static void settleWaitingSounds() {
+        if (notProcd.isEmpty()) return;
+        java.util.Set<SoundInstance> queued = new java.util.HashSet<>();
+        for (SoundData waiting : soundQueue) {
+            if (waiting.sound instanceof RedSoundInstance red) queued.add(red.getOriginal());
+        }
+        notProcd.removeIf(sound -> !queued.contains(sound));
+    }
+
     public static void playQueuedObjects() {
         ticksSinceWorld++;
 
-        if (soundPlayingWaiting.isEmpty())
+        // Wavefront: a round's sounds start together, once every one of them has been worked out.
+        // Sounds made on the same tick then share one timing reference, which is what makes two
+        // identical sources interfere correctly.
+        if (soundTasks != null || soundsReady.isEmpty())
             return;
 
         Minecraft client = Minecraft.getInstance();
 
-        // Create a snapshot of all sounds to play
         List<SoundInstance> soundsToPlay = new ArrayList<>();
-
-        for (ArrayList<SoundInstance> soundList : soundPlayingWaiting.values()) {
-            synchronized (soundList) {  // Synchronize access to the list
-                soundsToPlay.addAll(soundList);
-            }
+        for (SoundInstance ready = soundsReady.poll(); ready != null; ready = soundsReady.poll()) {
+            soundsToPlay.add(ready);
         }
 
         // Wavefront: every sound started this tick is timed from the same instant on the audio
@@ -201,24 +220,27 @@ public class RaycastingHelper {
         long reference = Config.getInstance().wavePhysics && Config.getInstance().soundDelay ? SoundClock.now() : 0L;
         if (reference != 0L) reference += SoundClock.LEAD_NANOS;
 
-        // Play all sounds from the snapshot
         for (SoundInstance newSound : soundsToPlay) {
-            if (newSound == null)
-                continue;
             if (reference != 0L && newSound instanceof RedPermeatedSoundInstance timed) {
                 timed.setStartNanos(SoundClock.startTime(reference, timed.getDelaySeconds()));
             }
+            if (newSound instanceof RedTickableInstance stand) notProcd.remove(stand.original());
             client.getSoundManager().play(newSound);
         }
-
-        // Clear the entire map after playing all sounds
-        notProcd.clear();
-        soundPlayingWaiting.clear();
     }
 
     public static int processAndPlayAveragedSounds(Level world, Player player, Vec3 playerEyePos,
                                                    List<Vec3> rayDirections,
                                                    double maxTotalDistance, Minecraft client) {
+
+        // Wavefront: the per-sound calculations run on worker threads and the game never waits for
+        // them. While a round is still going, come back next tick.
+        List<CompletableFuture<Void>> running = soundTasks;
+        if (running != null) {
+            if (!CompletableFuture.allOf(running.toArray(new CompletableFuture[0])).isDone()) return -1;
+            soundTasks = null;
+            return 0;
+        }
 
         if (processRaysWithAveraging(world, player, playerEyePos, rayDirections, maxTotalDistance) == -1) // return if still processing.
             return -1;
@@ -247,6 +269,7 @@ public class RaycastingHelper {
             return 0;
         }
 
+        roundDeadline = System.nanoTime() + Math.max(1, Config.getInstance().searchTimeMs) * 1_000_000L;
         List<CompletableFuture<Void>> soundTasks = new ArrayList<>();
         if(!Config.getInstance().usesPermeationPath()) { // force no regular processing if permeation is enabled
             for (AveragedSoundData avgData : averagedResults.values()) {
@@ -266,9 +289,10 @@ public class RaycastingHelper {
             }
         }
 
-        // Wait for all sound processing to complete
-        CompletableFuture.allOf(soundTasks.toArray(new CompletableFuture[0])).join();
-        return 0;
+        // Wavefront: do not wait here. Waiting froze the game for as long as the calculations took.
+        if (CompletableFuture.allOf(soundTasks.toArray(new CompletableFuture[0])).isDone()) return 0;
+        RaycastingHelper.soundTasks = soundTasks;
+        return -1;
     }
 
     // Advanced method with volume and pitch adjustment based on confidence
@@ -444,7 +468,12 @@ public class RaycastingHelper {
                 ? ((RedTickableInstance) originalSound).getOriginalPosition()
                 : avgData.soundEntity.position;
 
-        AcousticSolver.Solved solved = AcousticSolver.solve(world, player, playerPos, sourcePos);
+        long deadline = roundDeadline;
+        AcousticSolver.Solved solved = AcousticSolver.solveShared(world, player, playerPos, sourcePos, deadline);
+        // Out of time before the ways round were found. A sound already playing keeps what it has,
+        // and is looked at again next round, so it never dips for a moment.
+        if (solved.partial && originalSound instanceof RedPermeatedSoundInstance) return;
+        boolean lateInRound = System.nanoTime() > deadline;
         float echoVolume = volume; // echoes work out their own fall-off from the sound's full volume
 
         // With the engine's own distance fall-off switched off, apply the vanilla fall-off here
@@ -460,7 +489,7 @@ public class RaycastingHelper {
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
-            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.seconds);
+            if (!lateInRound) updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.seconds);
             return;
         }
         if (originalSound instanceof RedTickableInstance) return; // classic-mode sound left over from a settings change
@@ -479,7 +508,7 @@ public class RaycastingHelper {
                 String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)")));
 
         queueSound(newSound);
-        queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, echoVolume, pitch);
+        if (!lateInRound) queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, echoVolume, pitch);
     }
 
     /**
@@ -591,8 +620,13 @@ public class RaycastingHelper {
         return Math.min(1f, gain / Math.max(0.1f, placementLoss));
     }
 
+    /** Wavefront: drops sounds that were worked out but not yet started. */
+    public static void forgetReadySounds() {
+        soundsReady.clear();
+    }
+
     private static void queueSound(SoundInstance newSound) {
-        soundPlayingWaiting.computeIfAbsent(ticksSinceWorld + 1, k -> new ArrayList<>()).add(newSound);
+        soundsReady.add(newSound);
     }
 
     public static int processRaysWithAveraging(Level world, Player player,
@@ -1279,6 +1313,8 @@ public class RaycastingHelper {
     // this is prolly not a good thing... #burnthevibecoder
     public static synchronized void shutdown() {
         rayTasks = null;
+        soundTasks = null;
+        soundsReady.clear();
         isRaytracing.set(false);
         try {
             raycastExecutor.shutdown();

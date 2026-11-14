@@ -85,6 +85,7 @@ public class Config {
                 c.diffractionRoutes = 1;
                 c.diffractionRange = 24;
                 c.diffractionSearchBudget = 3000;
+                c.searchTimeMs = 10;
                 c.echoCount = 1;
                 c.echoRange = 48;
                 c.echoContinuous = false;
@@ -97,6 +98,7 @@ public class Config {
                 c.diffractionRoutes = 3;
                 c.diffractionRange = 32;
                 c.diffractionSearchBudget = 6000;
+                c.searchTimeMs = 25;
             }
             case OVERKILL -> {
                 // Every accuracy setting at its limit, whether or not the difference can be heard.
@@ -109,6 +111,7 @@ public class Config {
                 c.diffractionRoutes = 4;
                 c.diffractionRange = 64;
                 c.diffractionSearchBudget = 20000;
+                c.searchTimeMs = 250;
                 c.echoCount = 3;
                 c.echoRange = 128;
                 c.echoContinuous = true;
@@ -205,6 +208,11 @@ public class Config {
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.diffractionStrength.description")
     @SerialEntry public float diffractionStrength = 1.0f;
+
+    @AutoGen(category = "performance", group = "bending")
+    @IntSlider(min = 5, max = 500, step = 5)
+    @CustomDescription("yacl3.config.wavefront:config.searchTimeMs.description")
+    @SerialEntry public int searchTimeMs = 50;
 
     // ===== Distance and motion =====
     @AutoGen(category = "physics", group = "distance")

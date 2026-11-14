@@ -56,6 +56,14 @@ public final class PathFinder {
 
     private final World world;
     private final int maxNodes;
+    /** A moment (System.nanoTime) after which the search gives up, or 0 for no limit. */
+    private long deadline = 0L;
+    private boolean timedOut = false;
+    /** Exact line checks still allowed while pulling the current route tight. */
+    private int checksLeft = 0;
+
+    /** Most exact line checks spent on tightening one route. Past this the route is used as it stands. */
+    private static final int CHECKS_PER_ROUTE = 400;
 
     /** After a route is found, cells this close to its bends are closed off to force a different one. */
     private static final int EXCLUDE = 3;
@@ -65,6 +73,22 @@ public final class PathFinder {
     public PathFinder(World world, int maxNodes) {
         this.world = world;
         this.maxNodes = maxNodes;
+    }
+
+    /** Makes the search give up at this moment (System.nanoTime). Whatever it has by then is still valid. */
+    public PathFinder deadline(long nanoTime) {
+        this.deadline = nanoTime;
+        return this;
+    }
+
+    /** True if the search stopped early because time ran out, so there may be routes it did not find. */
+    public boolean timedOut() {
+        return timedOut;
+    }
+
+    private boolean outOfTime() {
+        if (deadline != 0L && System.nanoTime() > deadline) timedOut = true;
+        return timedOut;
     }
 
     /**
@@ -79,7 +103,9 @@ public final class PathFinder {
         long startCell = cellOf(source), goalCell = cellOf(listener);
 
         for (int attempt = 0; attempt < maxRoutes; attempt++) {
-            List<long[]> cells = search(source, listener, blocked, margin);
+            if (outOfTime()) break;
+            // The first route matters most. Further ways round get a quarter of the effort.
+            List<long[]> cells = search(source, listener, blocked, margin, attempt == 0 ? maxNodes : Math.max(500, maxNodes / 4));
             if (cells == null) break;
             Route route = tighten(source, listener, cells);
             if (route == null) break;
@@ -145,7 +171,7 @@ public final class PathFinder {
         }
     }
 
-    private List<long[]> search(double[] source, double[] listener, Set<Long> blocked, int margin) {
+    private List<long[]> search(double[] source, double[] listener, Set<Long> blocked, int margin, int nodeBudget) {
         int sx = floor(source[0]), sy = floor(source[1]), sz = floor(source[2]);
         int gx = floor(listener[0]), gy = floor(listener[1]), gz = floor(listener[2]);
         int minX = Math.min(sx, gx) - margin, maxX = Math.max(sx, gx) + margin;
@@ -168,7 +194,8 @@ public final class PathFinder {
                 for (Node n = cur; n != null; n = n.parent) path.add(0, new long[]{n.x, n.y, n.z});
                 return path;
             }
-            if (++expanded > maxNodes) return null;
+            if (++expanded > nodeBudget) return null;
+            if ((expanded & 63) == 0 && outOfTime()) return null;
 
             for (int[] s : STEPS) {
                 int nx = cur.x + s[0], ny = cur.y + s[1], nz = cur.z + s[2];
@@ -231,6 +258,7 @@ public final class PathFinder {
         }
         pts.add(listener.clone());
 
+        checksLeft = CHECKS_PER_ROUTE;
         pts = shortcut(pts);
         for (int round = 0; round < 4; round++) {
             boolean changed = false;
@@ -303,17 +331,27 @@ public final class PathFinder {
         return lerp(from, to, Math.min(1.0, distance / d));
     }
 
-    /** Drops every waypoint that can be skipped with a clear straight line. */
+    /**
+     * Drops waypoints that can be skipped with a clear straight line. From each kept point it
+     * looks for the furthest later point it can see, by halving the range each time, so a long
+     * route costs a handful of checks per bend instead of one per pair of points.
+     */
     private List<double[]> shortcut(List<double[]> pts) {
         List<double[]> out = new ArrayList<>();
-        int i = 0;
+        int last = pts.size() - 1, i = 0;
         out.add(pts.get(0));
-        while (i < pts.size() - 1) {
+        while (i < last) {
             int next = i + 1;
-            for (int j = pts.size() - 1; j > i + 1; j--) {
-                if (clear(pts.get(i), pts.get(j))) {
-                    next = j;
-                    break;
+            if (last > i + 1) {
+                if (clear(pts.get(i), pts.get(last))) {
+                    next = last;
+                } else {
+                    int seen = i + 1, unseen = last; // the next point is always reachable; the last is not
+                    while (unseen - seen > 1) {
+                        int mid = (seen + unseen) >>> 1;
+                        if (clear(pts.get(i), pts.get(mid))) seen = mid; else unseen = mid;
+                    }
+                    next = seen;
                 }
             }
             out.add(pts.get(next));
@@ -346,7 +384,17 @@ public final class PathFinder {
         return movedAny;
     }
 
+    /**
+     * An exact line check, counted against the route's allowance. Once the allowance or the
+     * time is used up it answers "blocked", which only ever leaves the route a little less
+     * tight than it could be, never wrong.
+     */
     private boolean clear(double[] a, double[] b) {
+        if (checksLeft <= 0) return false;
+        if ((--checksLeft & 31) == 0 && outOfTime()) {
+            checksLeft = 0;
+            return false;
+        }
         return world.segmentClear(a[0], a[1], a[2], b[0], b[1], b[2]);
     }
 

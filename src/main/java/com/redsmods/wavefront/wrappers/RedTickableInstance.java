@@ -119,6 +119,11 @@ public class RedTickableInstance implements TickableSoundInstance {
         return wrapped;
     }
 
+    /** Wavefront: the sound this instance stands in for. */
+    public SoundInstance original() {
+        return wrapped;
+    }
+
     public void updatePos() {
         // Calculate the direction vector to the target
         double deltaX = targetPosition.x() - x;

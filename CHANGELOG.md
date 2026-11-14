@@ -17,6 +17,7 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Doppler shift for moving listeners and moving sound sources.
 - Distinct echoes off large flat surfaces, as delayed copies placed in the surface's direction. Music and looping sounds echo too.
 - Water and lava: faster travel, a loss at each surface crossing, duller and less directional hearing when submerged, and Doppler scaled to the listener's medium.
+- The game no longer waits for sound calculations: they run on worker threads with a time limit per round (Search Time). Sounds from the same spot share one calculation, and tightening a route is capped at 400 line checks.
 - Own settings screen: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Every setting is in these rows.
 - Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
 - Defaults are the most realistic values.

@@ -194,6 +194,7 @@ public abstract class SoundSystemMixin {
     @Inject(method = "stopAll()V", at = @At("HEAD"))
     private void onStopAll(CallbackInfo ci) {
         soundQueue.clear();
+        RaycastingHelper.forgetReadySounds(); // sounds worked out for a world being left must not play in the next
     }
 
     /**

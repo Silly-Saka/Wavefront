@@ -32,6 +32,7 @@ A wave-simulated bass layer (true interference and room modes below about 200 Hz
 - A sound in plain view through an opening is treated as unobstructed; the opening's size only affects sounds that have to bend to reach you.
 - Defaults aim for realism: Wall Strength 1.0 and the Realism quality preset. Walls are strong (one stone block takes off about 35 dB), and the preset's performance cost has not been measured. The Balanced and Performance presets are lighter.
 - The game-facing code is new and has had little in-game testing.
+- Sound calculations run on worker threads and the game never waits for them. When many blocked sounds play at once, a new sound can start up to about one round late (the Search Time setting) and reach its full level a moment after.
 
 ## Building
 
@@ -45,7 +46,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 148 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 150 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 
