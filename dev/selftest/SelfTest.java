@@ -455,6 +455,27 @@ public class SelfTest {
         Propagation.Result heard = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, List.of(wet));
         near("the combined result carries the travel time", heard.seconds, swim.seconds(), 1e-9);
 
+        // ---------------- telling left from right under water
+        near("in air the whole left-right cue survives", EarCues.sidewaysKept(343, 1.0), 1.0, 1e-9);
+        double keptInWater = EarCues.sidewaysKept(water.speed, 1.0);
+        near("in water 23.7 percent of it survives", keptInWater, 343 / 1447.29, 1e-6);
+        near("at strength 0 nothing changes", EarCues.sidewaysKept(water.speed, 0), 1.0, 1e-9);
+        double[] ear = {10, 64, 10}, facing = {0, 0, 1}, rightSide = {-1, 0, 0}; // facing south, right hand to the west
+        double[] side = EarCues.compress(ear, rightSide, facing, 2, 64, 10, keptInWater); // 8 blocks to the right
+        double sideAngle = Math.toDegrees(Math.asin((side[0] - ear[0]) * rightSide[0] / 8));
+        near("a sound directly to the right is heard 13.7 degrees right of centre", sideAngle, 13.7, 0.1);
+        near("and stays 8 blocks away", dist(side, ear), 8.0, 1e-9);
+        check("and is leant towards the front", side[2] > ear[2], "");
+        double[] ahead = EarCues.compress(ear, rightSide, facing, 10, 64, 20, keptInWater);
+        check("a sound straight ahead does not move", Math.abs(ahead[0] - 10) < 1e-9 && Math.abs(ahead[2] - 20) < 1e-9, "");
+        double[] behindLeft = EarCues.compress(ear, rightSide, facing, 15, 64, 5, keptInWater);
+        check("a sound behind and to the left stays behind and to the left", behindLeft[2] < ear[2] && behindLeft[0] > ear[0], "");
+        near("but only a quarter as far to the left", (behindLeft[0] - ear[0]) / 5.0, keptInWater, 1e-6);
+        double[] above = EarCues.compress(ear, rightSide, facing, 10, 70, 10, keptInWater);
+        check("a sound straight overhead does not move", Math.abs(above[1] - 70) < 1e-9 && Math.abs(above[0] - 10) < 1e-9, "");
+        double[] unmoved = EarCues.compress(ear, rightSide, facing, 2, 64, 10, 1.0);
+        check("with the full cue kept nothing moves", Math.abs(unmoved[0] - 2) < 1e-9 && Math.abs(unmoved[2] - 10) < 1e-9, "");
+
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
         check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");

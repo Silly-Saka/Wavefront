@@ -40,6 +40,9 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     /** Wavefront: an echo copy that can be started again later gives its channel back after 5 silent seconds. */
     @lombok.Setter private boolean retireWhenSilent = false;
     private int silentTicks = 0;
+    /** Wavefront: where the sound is heard from when that differs from where it is (listener under water). */
+    private double heardX, heardY, heardZ;
+    private boolean heardShifted = false;
     /** Wavefront: for an echo copy, which of the six block directions its surface lies in. */
     @Getter @lombok.Setter private int echoDirection = -1;
     /** Wavefront: the echo copies of this sound, kept so they can follow it and stop with it. */
@@ -54,6 +57,37 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         super.updatePos();
         super.updateVolume();
         updateMuffle();
+        updateHeardPosition();
+    }
+
+    /**
+     * Wavefront: works out where this sound is heard from. Normally that is where it is; with
+     * the listener under water it is moved towards the middle, because left and right are hard
+     * to tell apart there.
+     */
+    private void updateHeardPosition() {
+        double[] heard = wavefront.mc.ListenerState.heardFrom(super.getX(), super.getY(), super.getZ());
+        if (heard != null) {
+            heardX = heard[0];
+            heardY = heard[1];
+            heardZ = heard[2];
+        }
+        heardShifted = heard != null;
+    }
+
+    @Override
+    public double getX() {
+        return heardShifted ? heardX : super.getX();
+    }
+
+    @Override
+    public double getY() {
+        return heardShifted ? heardY : super.getY();
+    }
+
+    @Override
+    public double getZ() {
+        return heardShifted ? heardZ : super.getZ();
     }
 
     public void setPermeationIndex(float permeationIndex) {
@@ -80,6 +114,7 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         super.updatePitch();
         updateMuffle();
         updateDopplerVelocity();
+        updateHeardPosition();
     }
 
     /** Wavefront: keeps OpenAL informed of the real source's speed so it can shift the pitch. */
@@ -137,6 +172,7 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         super.updateVolume();
         super.updatePitch();
         updateMuffle();
+        updateHeardPosition();
         if (retireWhenSilent && targetGain <= 0f && gain <= 0.002f) {
             if (++silentTicks > 100) echoStopped = true;
         } else {

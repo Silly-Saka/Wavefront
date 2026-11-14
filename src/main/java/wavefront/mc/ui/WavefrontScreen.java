@@ -101,7 +101,7 @@ public class WavefrontScreen extends Screen {
         out.add(topic(placed, "distance", "soundDelay",
                 List.of("airAbsorptionStrength", "doppler", "dopplerStrength", "echoes", "echoContinuous", "echoRough", "echoStrength", "echoCount", "echoRange"), List.of()));
 
-        out.add(topic(placed, "water", "water", List.of("waterSurfaceStrength", "submergedHearing"), List.of()));
+        out.add(topic(placed, "water", "water", List.of("waterSurfaceStrength", "submergedHearing", "submergedDirection"), List.of()));
 
         // Reverb: the main values, then one group per set of fine-tuning values.
         List<String> reverbMain = List.of("raysCast", "raysBounced", "maxRayLength", "bounceAbsorptionMultiplier");

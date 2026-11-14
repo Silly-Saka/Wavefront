@@ -15,7 +15,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Air absorption.** High notes fade over distance, from the ISO 9613-1 formula.
 - **Doppler shift.** Pitch changes with how fast you and a sound move relative to each other.
 - **Distinct echoes.** Sounds repeat off large flat surfaces that are far enough away, from the direction of the surface. Music and looping sounds echo too. Loops such as a moving minecart pick up new surfaces as they go; a music disc only echoes off the surfaces in range when it started. An optional setting lets uneven surfaces such as natural cliffs echo, weakened by how rough and patchy they are.
-- **Water and lava.** Sound travels about four times faster under water, loses about 29 dB each time it crosses the surface (36 dB for lava), and loses treble to a submerged listener. Doppler shift uses the speed of sound where the listener is.
+- **Water and lava.** Sound travels about four times faster under water, loses about 29 dB each time it crosses the surface (36 dB for lava), and loses treble to a submerged listener, who can also barely tell left from right. Doppler shift uses the speed of sound where the listener is.
 - **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
@@ -45,7 +45,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 137 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 148 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 
