@@ -23,7 +23,7 @@ Speed-of-sound delay, Doppler, air absorption, distinct echoes, underwater sound
 
 - OpenAL's built-in per-sound filter has two controls (overall gain and treble gain). The 8-band result is reduced to those two, so the tone shaping is coarser than the calculation behind it.
 - Opening size does not yet change how sound spreads after a gap.
-- The default wall strength (0.6) is a starting point and needs tuning by ear.
+- Defaults aim for realism: Wall Strength 1.0 and the Realism quality preset. Walls are strong (one stone block takes off about 35 dB), and the preset's performance cost has not been measured. The Balanced and Performance presets are lighter.
 - The game-facing code is new and has had little in-game testing.
 
 ## Building

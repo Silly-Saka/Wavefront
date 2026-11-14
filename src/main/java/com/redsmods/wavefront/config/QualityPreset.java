@@ -1,9 +1,12 @@
 package com.redsmods.wavefront.config;
 
-/** How much work the mod does. Custom uses the values on the Performance tab. */
+/**
+ * How much work the mod does. Realism uses the most thorough values, Performance the lightest,
+ * and Custom uses the values on the Performance tab.
+ */
 public enum QualityPreset {
-    LOW,
-    MEDIUM,
-    HIGH,
+    PERFORMANCE,
+    BALANCED,
+    REALISM,
     CUSTOM
 }

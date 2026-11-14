@@ -43,41 +43,41 @@ public class Config {
     }
 
     // ----- Quality presets -----
-    // Low, Medium and High replace the Performance tab's values; Custom uses them as set.
+    // Performance, Balanced and Realism replace the Performance tab's values; Custom uses them as set.
 
     public int rays() {
-        return switch (qualityPreset) { case LOW -> 100; case MEDIUM -> 200; case HIGH -> 400; default -> raysCast; };
+        return switch (qualityPreset) { case PERFORMANCE -> 100; case BALANCED -> 200; case REALISM -> 500; default -> raysCast; };
     }
 
     public int bounces() {
-        return switch (qualityPreset) { case LOW -> 2; case MEDIUM -> 3; case HIGH -> 4; default -> raysBounced; };
+        return switch (qualityPreset) { case PERFORMANCE -> 2; case BALANCED -> 3; case REALISM -> 3; default -> raysBounced; };
     }
 
     public int rayLength() {
-        return switch (qualityPreset) { case LOW -> 3; case MEDIUM -> 4; case HIGH -> 4; default -> maxRayLength; };
+        return switch (qualityPreset) { case PERFORMANCE -> 3; case BALANCED -> 4; case REALISM -> 4; default -> maxRayLength; };
     }
 
     public int updateTicks() {
-        return switch (qualityPreset) { case LOW -> 10; case MEDIUM -> 10; case HIGH -> 5; default -> tickRate; };
+        return switch (qualityPreset) { case PERFORMANCE -> 10; case BALANCED -> 10; case REALISM -> 4; default -> tickRate; };
     }
 
     public int routes() {
-        return switch (qualityPreset) { case LOW -> 1; case MEDIUM -> 3; case HIGH -> 3; default -> diffractionRoutes; };
+        return switch (qualityPreset) { case PERFORMANCE -> 1; case BALANCED -> 3; case REALISM -> 4; default -> diffractionRoutes; };
     }
 
     public int bendRange() {
-        return switch (qualityPreset) { case LOW -> 24; case MEDIUM -> 32; case HIGH -> 48; default -> diffractionRange; };
+        return switch (qualityPreset) { case PERFORMANCE -> 24; case BALANCED -> 32; case REALISM -> 64; default -> diffractionRange; };
     }
 
     public int searchBudget() {
-        return switch (qualityPreset) { case LOW -> 3000; case MEDIUM -> 6000; case HIGH -> 10000; default -> diffractionSearchBudget; };
+        return switch (qualityPreset) { case PERFORMANCE -> 3000; case BALANCED -> 6000; case REALISM -> 12000; default -> diffractionSearchBudget; };
     }
 
     // ===== Quick Setup tab =====
     @AutoGen(category = "quick", group = "main")
     @EnumCycler
     @CustomDescription("yacl3.config.wavefront:config.qualityPreset.description")
-    @SerialEntry public QualityPreset qualityPreset = QualityPreset.MEDIUM;
+    @SerialEntry public QualityPreset qualityPreset = QualityPreset.REALISM;
 
     @AutoGen(category = "quick", group = "main")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
@@ -100,7 +100,7 @@ public class Config {
     @FloatSlider(min = 0, max = 2, step = 0.05f)
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.wallStrength.description")
-    @SerialEntry public float wallStrength = 0.6f;
+    @SerialEntry public float wallStrength = 1.0f;
 
     @AutoGen(category = "physics", group = "bending")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
@@ -139,7 +139,7 @@ public class Config {
     @IntField(min = 0, max = 2000)
     @FormatTranslation("wavefront.config.unit.rays")
     @CustomDescription("yacl3.config.wavefront:config.raysCast.description")
-    @SerialEntry public int raysCast = 200;
+    @SerialEntry public int raysCast = 500;
 
     @AutoGen(category = "performance", group = "rays")
     @IntSlider(min = 0, max = 16, step = 1)
@@ -157,7 +157,7 @@ public class Config {
     @IntSlider(min = 0, max = 20, step = 1)
     @FormatTranslation("wavefront.config.unit.ticks")
     @CustomDescription("yacl3.config.wavefront:config.tickRate.description")
-    @SerialEntry public int tickRate = 10; // once every 2 ticks bc i want poor people's pcs to burn
+    @SerialEntry public int tickRate = 4; // once every 2 ticks bc i want poor people's pcs to burn
 
     @AutoGen(category = "performance", group = "updates")
     @IntSlider(min = -1, max = 1000, step = 10)
@@ -173,19 +173,19 @@ public class Config {
     @AutoGen(category = "performance", group = "bending")
     @IntSlider(min = 1, max = 4, step = 1)
     @CustomDescription("yacl3.config.wavefront:config.diffractionRoutes.description")
-    @SerialEntry public int diffractionRoutes = 3;
+    @SerialEntry public int diffractionRoutes = 4;
 
     @AutoGen(category = "performance", group = "bending")
     @IntSlider(min = 8, max = 64, step = 4)
     @FormatTranslation("wavefront.config.unit.blocks")
     @CustomDescription("yacl3.config.wavefront:config.diffractionRange.description")
-    @SerialEntry public int diffractionRange = 32;
+    @SerialEntry public int diffractionRange = 64;
 
     @AutoGen(category = "performance", group = "bending")
     @IntSlider(min = 500, max = 20000, step = 500)
     @FormatTranslation("wavefront.config.unit.steps")
     @CustomDescription("yacl3.config.wavefront:config.diffractionSearchBudget.description")
-    @SerialEntry public int diffractionSearchBudget = 6000;
+    @SerialEntry public int diffractionSearchBudget = 12000;
 
     // ===== Reverb Tuning tab (from Sound Physics Perfected) =====
     @AutoGen(category = "reverb_tuning", group = "main")
