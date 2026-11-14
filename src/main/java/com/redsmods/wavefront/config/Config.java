@@ -111,6 +111,8 @@ public class Config {
                 c.diffractionSearchBudget = 20000;
                 c.echoCount = 3;
                 c.echoRange = 128;
+                c.echoContinuous = true;
+                c.echoRough = true;
                 c.procRange = -1;
                 c.maxSounds = 1000;
             }
@@ -236,6 +238,11 @@ public class Config {
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
     @CustomDescription("yacl3.config.wavefront:config.echoContinuous.description")
     @SerialEntry public boolean echoContinuous = true;
+
+    @AutoGen(category = "physics", group = "distance")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.echoRough.description")
+    @SerialEntry public boolean echoRough = false;
 
     @AutoGen(category = "physics", group = "distance")
     @FloatSlider(min = 0, max = 3, step = 0.1f)

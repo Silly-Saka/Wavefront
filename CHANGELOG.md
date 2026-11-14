@@ -20,6 +20,9 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
 - Defaults are the most realistic values.
 - Overkill quality preset: every accuracy setting at its limit.
+- Rough Surface Echoes setting (on in Overkill): uneven surfaces echo, weakened by roughness and gaps.
+- Echoes stay in the direction of their surface as the listener moves, and echoes of moving sounds get their own Doppler shift.
+- Leaves and other blocks that let sound through no longer echo like solid walls.
 - Every tooltip says how the setting affects realism and performance, with a recommended value for each.
 - Plain-language tooltips on the main settings.
 - New icon.

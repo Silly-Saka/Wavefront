@@ -445,6 +445,7 @@ public class RaycastingHelper {
                 : avgData.soundEntity.position;
 
         AcousticSolver.Solved solved = AcousticSolver.solve(world, player, playerPos, sourcePos);
+        float echoVolume = volume; // echoes work out their own fall-off from the sound's full volume
 
         // With the engine's own distance fall-off switched off, apply the vanilla fall-off here
         // using the length of the path the sound really travelled.
@@ -459,7 +460,7 @@ public class RaycastingHelper {
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
-            updateEchoes(world, player, playerPos, sourcePos, playing, volume);
+            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume);
             return;
         }
         if (originalSound instanceof RedTickableInstance) return; // classic-mode sound left over from a settings change
@@ -478,7 +479,7 @@ public class RaycastingHelper {
                 String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
 
         queueSound(newSound);
-        queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, volume, pitch);
+        queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, echoVolume, pitch);
     }
 
     /**
@@ -504,6 +505,7 @@ public class RaycastingHelper {
                         Math.max(0.01f, volume), pitch, original, 1f, 1f);
                 copy.setFixedEcho(true);
                 copy.setEchoDirection(echo.direction);
+                copy.setEchoBounce(echo.bounce);
                 copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, true);
                 copy.setDelaySeconds(echo.pathLength / 343f);
                 main.getEchoCopies().add(copy);
@@ -523,7 +525,12 @@ public class RaycastingHelper {
         if (main.getEchoCopies().isEmpty()) return;
         try {
             List<AcousticSolver.EchoResult> now = AcousticSolver.echoes(world, player, playerPos, sourcePos, echoLoudness(playerPos, sourcePos, volume));
+            Vec3 moving = main.getSourceVelocity();
             for (RedPermeatedSoundInstance copy : main.getEchoCopies()) {
+                // The mirror image moves like the source, with the part towards the surface reversed.
+                Direction.Axis axis = Direction.values()[copy.getEchoDirection()].getAxis();
+                copy.setEchoVelocity(new Vec3(axis == Direction.Axis.X ? -moving.x : moving.x,
+                        axis == Direction.Axis.Y ? -moving.y : moving.y, axis == Direction.Axis.Z ? -moving.z : moving.z));
                 AcousticSolver.EchoResult match = null;
                 for (AcousticSolver.EchoResult echo : now) {
                     if (echo.direction == copy.getEchoDirection()) match = echo;
@@ -532,7 +539,7 @@ public class RaycastingHelper {
                 if (match == null) {
                     copy.setBandGains(0f, 1f, 1f, false);
                 } else {
-                    copy.setTargetPosition(match.position);
+                    copy.setEchoBounce(match.bounce);
                     copy.setBandGains(echoFilterGain(match.gain, volume), match.gainLF, match.gainHF, false);
                 }
             }

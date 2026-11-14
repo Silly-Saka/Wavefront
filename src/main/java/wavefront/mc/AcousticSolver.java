@@ -275,13 +275,17 @@ public final class AcousticSolver {
 
     /** One echo to play: where it seems to come from, its filter settings and how far it travelled. */
     public static final class EchoResult {
+        /** Where the echo's sound is placed: a short way from the listener, towards the bounce point. */
         public final Vec3 position;
+        /** The point on the surface the sound bounces off. */
+        public final Vec3 bounce;
         public final float gain, gainLF, gainHF, pathLength;
         /** Which of the six block directions the surface lies in (0..5). */
         public final int direction;
 
-        EchoResult(int direction, Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+        EchoResult(int direction, Vec3 bounce, Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
             this.direction = direction;
+            this.bounce = bounce;
             this.position = position;
             this.gain = gain;
             this.gainLF = gainLF;
@@ -291,12 +295,19 @@ public final class AcousticSolver {
     }
 
     private static final Direction[] ECHO_DIRECTIONS = Direction.values();
-    /** How close to the listener an echo's sound is placed; its loudness is set by its filter instead. */
-    private static final double ECHO_PLACEMENT = 1.0;
+    /**
+     * How far from the listener an echo's sound is placed; its loudness is set by its filter
+     * instead. Far enough that a step by the listener between two updates barely changes the
+     * direction it is heard from, near enough to stay well inside every sound's hearing range.
+     */
+    private static final double ECHO_PLACEMENT = 4.0;
+    /** With rough echoes on, how many blocks either side of the plane a surface may lie. */
+    private static final int ROUGH_DEPTH = 2;
 
     /**
-     * Looks for large flat surfaces that bounce this sound back to the listener late enough to
-     * be heard as a separate echo. Returns the strongest few, loudest first.
+     * Looks for large surfaces that bounce this sound back to the listener late enough to be
+     * heard as a separate echo. Returns the strongest few, loudest first. Surfaces must be flat
+     * unless rough echoes are switched on.
      *
      * @param loudness how loud the sound itself is at the listener before any walls (0..1)
      */
@@ -327,51 +338,98 @@ public final class AcousticSolver {
             Echo.Reflection reflection = Echo.reflect(src, lis, axis, plane);
             if (reflection == null || !reflection.distinct() || reflection.pathLength > range * 2.0) continue;
 
-            // The bounce point must sit on a broad solid face: at least 15 of the 25 blocks around it.
+            // Look at the 5 by 5 patch of surface round the bounce point. Normally every column must
+            // have its face exactly on the plane; with rough echoes on, a face may lie up to
+            // ROUGH_DEPTH blocks either side of it.
             double[] p = reflection.point;
             int[] cell = {(int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2])};
-            int behind = (int) Math.floor(plane + sign * 0.5), front = (int) Math.floor(plane - sign * 0.5);
-            int u = (axis + 1) % 3, v = (axis + 2) % 3, solid = 0;
+            int behind = (int) Math.floor(plane + sign * 0.5);
+            int u = (axis + 1) % 3, v = (axis + 2) % 3;
+            int reach = cfg.echoRough ? ROUGH_DEPTH : 0;
+            int[] depths = new int[25];
             for (int du = -2; du <= 2; du++) {
                 for (int dv = -2; dv <= 2; dv++) {
-                    int[] c = cell.clone();
-                    c[u] += du;
-                    c[v] += dv;
-                    c[axis] = behind;
-                    boolean wall = !view.isOpen(c[0], c[1], c[2]);
-                    c[axis] = front;
-                    if (wall && view.isOpen(c[0], c[1], c[2])) solid++;
+                    depths[(du + 2) * 5 + dv + 2] = surfaceDepth(view, cell, axis, u, v, du, dv, behind, sign, reach);
                 }
             }
-            if (solid < 15) continue;
+            Echo.Patch patch = Echo.patch(depths);
+            double facePlane = plane; // where the bounce point sits: in front of whatever sticks out furthest
+            if (cfg.echoRough) {
+                if (patch.coverage < Echo.MIN_ROUGH_COVERAGE) continue;
+                facePlane = plane + sign * patch.nearest;
+                if (patch.meanDepth != 0) {
+                    // Bounce off the average depth of the patch, not off the one block the search happened to hit.
+                    reflection = Echo.reflect(src, lis, axis, plane + sign * patch.meanDepth);
+                    if (reflection == null || !reflection.distinct() || reflection.pathLength > range * 2.0) continue;
+                    p = reflection.point;
+                }
+            } else if (patch.count < 15) {
+                continue; // a broad flat face needs at least 15 of the 25 blocks
+            }
 
             // Both legs of the bounce must be clear. Step a little off the surface so it does not block itself.
             double[] off = p.clone();
-            off[axis] = plane - sign * 0.05;
+            off[axis] = facePlane - sign * 0.05;
             if (!view.segmentClear(src[0], src[1], src[2], off[0], off[1], off[2])) continue;
             if (!view.segmentClear(off[0], off[1], off[2], lis[0], lis[1], lis[2])) continue;
 
+            // The material of the surface: the block at the middle of the patch, or the first one found.
+            int column = depths[12] != Echo.NO_SURFACE ? 12 : -1;
+            for (int i = 0; i < depths.length && column < 0; i++) {
+                if (depths[i] != Echo.NO_SURFACE) column = i;
+            }
             int[] surface = cell.clone();
-            surface[axis] = behind;
-            BlockState state = level.getBlockState(new BlockPos(surface[0], surface[1], surface[2]));
-            double[] energy = Echo.bounceEnergy(reflection, info(db, state).material.absorption, cfg.airAbsorptionStrength);
+            surface[u] += column / 5 - 2;
+            surface[v] += column % 5 - 2;
+            surface[axis] = behind + sign * depths[column];
+            AcousticMaterial material = info(db, level.getBlockState(new BlockPos(surface[0], surface[1], surface[2]))).material;
+            double[] energy = Echo.bounceEnergy(reflection, Echo.notReflected(material.absorption, material.realLoss1m), cfg.airAbsorptionStrength);
+            if (cfg.echoRough) {
+                for (int b = 0; b < Bands.COUNT; b++) energy[b] *= Echo.surfaceReturn(b, patch, reflection.cosIncidence);
+            }
             Propagation.Result r = Propagation.combine(lis, src, List.of(new Propagation.Arrival(energy, reflection.pathLength, off)));
 
             double amplitude = r.gain * Echo.spreading(straight, reflection.pathLength) * loudness * cfg.echoStrength;
             if (amplitude < 0.01) continue; // more than 40 dB down: not worth a sound channel
-            double dx = off[0] - lis[0], dy = off[1] - lis[1], dz = off[2] - lis[2];
-            double len = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy + dz * dz));
-            Vec3 placed = new Vec3(lis[0] + dx / len * ECHO_PLACEMENT, lis[1] + dy / len * ECHO_PLACEMENT, lis[2] + dz / len * ECHO_PLACEMENT);
-            found.add(new EchoResult(direction.ordinal(), placed, (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
+            Vec3 bounce = new Vec3(off[0], off[1], off[2]);
+            found.add(new EchoResult(direction.ordinal(), bounce, echoPlacementFor(listener, bounce),
+                    (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
         }
         found.sort((a, b) -> Float.compare(b.gain, a.gain));
         while (found.size() > cfg.echoCount) found.remove(found.size() - 1);
         return found;
     }
 
+    /**
+     * How deep one column of a surface patch lies: 0 if its face is on the plane, positive if it
+     * is set back, negative if it sticks out, {@link Echo#NO_SURFACE} if there is no face within
+     * {@code reach} blocks. A face is a solid block with an open block in front of it.
+     */
+    private static int surfaceDepth(WorldView view, int[] cell, int axis, int u, int v, int du, int dv, int behind, int sign, int reach) {
+        int[] c = cell.clone();
+        c[u] += du;
+        c[v] += dv;
+        for (int k = -reach; k <= reach; k++) {
+            c[axis] = behind + sign * k;
+            if (view.isOpen(c[0], c[1], c[2])) continue;
+            c[axis] = behind + sign * (k - 1);
+            if (view.isOpen(c[0], c[1], c[2])) return k;
+        }
+        return Echo.NO_SURFACE;
+    }
+
     /** The distance from the listener at which echo sounds are placed. */
     public static double echoPlacement() {
         return ECHO_PLACEMENT;
+    }
+
+    /** Where to put an echo's sound for a listener here: a short way off, straight towards the bounce point. */
+    public static Vec3 echoPlacementFor(Vec3 listener, Vec3 bounce) {
+        double dx = bounce.x - listener.x, dy = bounce.y - listener.y, dz = bounce.z - listener.z;
+        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 1e-6) return listener;
+        double scale = ECHO_PLACEMENT / len;
+        return new Vec3(listener.x + dx * scale, listener.y + dy * scale, listener.z + dz * scale);
     }
 
     // ------------------------------------------------------------------ world view for path finding

@@ -27,8 +27,13 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     @Getter @lombok.Setter private float delaySeconds = 0f;
     @Getter @lombok.Setter private long startNanos = 0L;
     private boolean movingLastTick = false;
-    /** Wavefront: true for an echo copy, which stays where it was put and is never re-solved. */
+    /** Wavefront: true for an echo copy. It is steered by the sound it repeats, never solved on its own. */
     @Getter @lombok.Setter private boolean fixedEcho = false;
+    /** Wavefront: for an echo copy, the point on the surface the sound bounces off. */
+    @lombok.Setter private volatile Vec3 echoBounce = null;
+    /** Wavefront: for an echo copy, how fast the mirror image of the sound source moves, in blocks per second. */
+    @lombok.Setter private volatile Vec3 echoVelocity = Vec3.ZERO;
+    private boolean echoMovingLastTick = false;
     /** Wavefront: for an echo copy, which of the six block directions its surface lies in. */
     @Getter @lombok.Setter private int echoDirection = -1;
     /** Wavefront: the echo copies of this sound, kept so they can follow it and stop with it. */
@@ -105,8 +110,9 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     }
 
     /**
-     * Wavefront: one tick of an echo copy. It glides to wherever it was last told to be, and
-     * when its sound stops it carries on for as long as the echo takes to arrive, then stops.
+     * Wavefront: one tick of an echo copy. It stays a fixed short distance from the listener in
+     * the direction of its bounce point, so walking about does not swing it round, and when its
+     * sound stops it carries on for as long as the echo takes to arrive, then stops.
      */
     private void tickEcho() {
         if (!originalStopped && wrappedSound() instanceof net.minecraft.client.resources.sounds.TickableSoundInstance source && source.isStopped()) {
@@ -116,10 +122,24 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
             if (stopCountdown < 0) stopCountdown = Math.max(1, Math.round(delaySeconds * 20f));
             if (--stopCountdown <= 0) echoStopped = true;
         }
+        Vec3 bounce = echoBounce;
+        var listener = net.minecraft.client.Minecraft.getInstance().player;
+        if (bounce != null && listener != null) {
+            setTargetPosition(wavefront.mc.AcousticSolver.echoPlacementFor(listener.getEyePosition(), bounce));
+        }
         super.updatePos();
         super.updateVolume();
         super.updatePitch();
         updateMuffle();
+
+        // An echo comes from the mirror image of the source, which moves when the source does.
+        // Telling OpenAL its speed gives the echo its own, correct Doppler shift.
+        Vec3 velocity = echoVelocity;
+        boolean moving = velocity.lengthSqr() > 1.0e-6;
+        if ((moving || echoMovingLastTick) && sourceSet && AL10.alIsSource(id)) {
+            wavefront.mc.Doppler.setSourceVelocity(id, velocity.x, velocity.y, velocity.z);
+        }
+        echoMovingLastTick = moving;
     }
 
     /** Wavefront: tells an echo copy that the sound it repeats has been stopped. */

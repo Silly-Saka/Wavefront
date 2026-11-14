@@ -371,6 +371,38 @@ public class SelfTest {
         check("wool returns far less than stone", Echo.bounceEnergy(cliff, wool.absorption, 0)[4] < bounce[4] * 0.2, "");
         near("an echo over 38 blocks of a sound 2 away is 19 times weaker", 1.0 / Echo.spreading(2, 38), 19.0, 1e-9);
 
+        // ---------------- echoes off uneven surfaces
+        near("head-on bounce has cosine 1", cliff.cosIncidence, 1.0, 1e-9);
+        near("off-centre bounce cosine is depth over path", slanted.cosIncidence, 30.0 / Math.hypot(30, 12), 1e-9);
+        int X = Echo.NO_SURFACE;
+        Echo.Patch flat = Echo.patch(new int[25]);
+        check("a flat full patch: coverage 1, roughness 0", flat.coverage == 1.0 && flat.roughness == 0 && flat.meanDepth == 0 && flat.nearest == 0, "");
+        boolean flatReturnsAll = true;
+        for (int b = 0; b < Bands.COUNT; b++) flatReturnsAll &= Echo.surfaceReturn(b, flat, 1.0) == 1.0;
+        check("a flat full patch returns everything in every band", flatReturnsAll, "");
+        Echo.Patch steps = Echo.patch(new int[]{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, X});
+        near("half the columns one block deeper: roughness 0.5", steps.roughness, 0.5, 1e-9);
+        near("and coverage 24 of 25", steps.coverage, 0.96, 1e-9);
+        near("and mean depth 0.5", steps.meanDepth, 0.5, 1e-9);
+        // Hand calculation at 63 Hz: wavelength 5.444 m, g = 4*pi*0.5/5.444 = 1.154, exp(-g^2) = 0.264.
+        near("roughness 0.5 keeps 26.4 percent mirror-like at 63 Hz", Echo.surfaceReturn(0, steps, 1.0) / steps.coverage, 0.264 + (1 - 0.264) * 0.5, 0.001);
+        near("and only the scattered share at 2 kHz", Echo.surfaceReturn(5, steps, 1.0) / steps.coverage, Echo.SCATTERED_SHARE, 1e-6);
+        boolean bassSurvives = true;
+        for (int b = 1; b < Bands.COUNT; b++) bassSurvives &= Echo.surfaceReturn(b, steps, 1.0) <= Echo.surfaceReturn(b - 1, steps, 1.0) + 1e-12;
+        check("an uneven surface returns bass at least as well as treble", bassSurvives, "");
+        check("a glancing bounce is scattered less than a head-on one", Echo.surfaceReturn(1, steps, 0.3) > Echo.surfaceReturn(1, steps, 1.0), "");
+        Echo.Patch sparse = Echo.patch(new int[]{0, X, X, X, X, 0, X, X, X, X, 0, X, X, X, X, 0, X, X, X, X, 0, X, X, X, X});
+        check("a patch with 5 of 25 columns is too sparse to echo", sparse.coverage < Echo.MIN_ROUGH_COVERAGE, "(" + sparse.coverage + ")");
+        Echo.Patch proud = Echo.patch(new int[]{-2, 0, 0, 1, 2});
+        check("nearest is the part that sticks out furthest", proud.nearest == -2, "(" + proud.nearest + ")");
+        check("an empty patch has no coverage", Echo.patch(new int[]{X, X, X}).coverage == 0, "");
+        AcousticMaterial leaves = db.material("leaves");
+        double[] stoneLost = Echo.notReflected(stone.absorption, stone.realLoss1m);
+        near("stone: what is not reflected is just its absorption", stoneLost[3], stone.absorption[3], 1e-6);
+        double[] leafLost = Echo.notReflected(leaves.absorption, leaves.realLoss1m);
+        check("leaves let nearly everything through, so they reflect under 3 percent", 1 - leafLost[3] < 0.03,
+                String.format("(reflects %.3f, absorption alone would say %.2f)", 1 - leafLost[3], 1 - leaves.absorption[3]));
+
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
         check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");

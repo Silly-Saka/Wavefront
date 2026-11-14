@@ -26,7 +26,7 @@
         "realism": "Realism",
         "realism.tip": "Most thorough values that still make an audible difference, and the default. 500 rays, 4 diffraction routes out to 64 blocks, 2 echoes out to 96 blocks, sounds re-checked 5 times a second.",
         "overkill": "Overkill",
-        "overkill.tip": "Every accuracy setting at its limit, whether or not you can hear the difference: 2000 rays reaching 16 chunks, every sound re-checked every tick, 4 diffraction routes with the deepest search, 3 echoes out to 128 blocks, no range or sound-count limits. Strengths stay at their real-world value of 1.0. Expect a heavy load and possible stutter in busy places.",
+        "overkill.tip": "Every accuracy setting at its limit, whether or not you can hear the difference: 2000 rays reaching 16 chunks, every sound re-checked every tick, 4 diffraction routes with the deepest search, 3 echoes out to 128 blocks including off rough surfaces, music and loops echo, no range or sound-count limits. Strengths stay at their real-world value of 1.0. Very heavy: expect stutter even on a fast computer.",
         "custom": "Custom",
         "custom.tip": "Your own values. Changing any setting while on a preset switches here, starting from that preset's values."
       },
@@ -322,7 +322,7 @@
       "dopplerStrength": "Doppler Strength",
       "dopplerStrength.description": "How strong the pitch shift is. 0 turns it off.\\n\\nRealism: 1.0 is the real amount for the speed of sound in air. Most realistic: 1.0.\\n\\nPerformance: no effect.",
       "echoes": "Distinct Echoes",
-      "echoes.description": "A clear repeat of a sound off a large flat surface, such as a cliff face or the far wall of a big cavern. The surface must be at least 5 blocks across and far enough away that the repeat arrives 0.05 seconds or more after the sound; closer than that it blends into the reverb. Needs Speed of Sound to be ON. Music and looping sounds are covered by the next setting.\\n\\nRealism: ON. Most realistic: ON.\\n\\nPerformance: each echo is an extra copy of the sound, and each new sound checks six directions for a surface. Fastest: OFF.",
+      "echoes.description": "A clear repeat of a sound off a large flat surface, such as a built wall or a sheer cliff face. The surface must be flat, at least 5 blocks across and far enough away that the repeat arrives 0.05 seconds or more after the sound; closer than that it blends into the reverb. Needs Speed of Sound to be ON. Music, looping sounds and uneven surfaces are covered by the next two settings.\\n\\nRealism: ON. Most realistic: ON.\\n\\nPerformance: each echo is an extra copy of the sound, and each new sound checks six directions for a surface. Fastest: OFF.",
       "echoStrength": "Echo Strength",
       "echoStrength.description": "How loud echoes are. 0 silences them.\\n\\nRealism: 1.0 is the real amount: an echo is quieter than the sound in proportion to how much further it travelled, less what the surface absorbs. Most realistic: 1.0.\\n\\nPerformance: no effect.",
       "echoCount": "Echoes Per Sound",
@@ -330,7 +330,9 @@
       "echoRange": "Echo Range",
       "echoRange.description": "How far away a surface can be and still be checked for an echo.\\n\\nRealism: at 96 blocks an echo returns just over half a second late and is very faint; beyond that little is audible. Most realistic: 96 blocks.\\n\\nPerformance: longer checks reach further through the world. Fastest: 48 blocks or less.",
       "echoContinuous": "Echo Music and Loops",
-      "echoContinuous.description": "Gives music discs and looping sounds echoes as well. Each echo is a second copy of the sound that plays for as long as the sound does and is re-aimed as you move. Its lateness is fixed when the sound starts, and a sound only echoes off surfaces that were in range at that moment.\\n\\nRealism: ON, a jukebox near a cliff should echo like anything else. Most realistic: ON.\\n\\nPerformance: each echo of a music disc is another music stream, and Minecraft only has 8 of those. Fastest: OFF."
+      "echoContinuous.description": "Gives music discs and looping sounds echoes as well. Each echo is a second copy of the sound that plays for as long as the sound does and is re-aimed as you move. Its lateness is fixed when the sound starts, and a sound only echoes off surfaces that were in range at that moment.\\n\\nRealism: ON, a jukebox near a cliff should echo like anything else. Most realistic: ON.\\n\\nPerformance: each echo of a music disc is another music stream, and Minecraft only has 8 of those. Fastest: OFF.",
+      "echoRough": "Rough Surface Echoes",
+      "echoRough.description": "Lets uneven surfaces echo as well as flat ones: natural cliffs, cave walls, anything whose face varies by up to 2 blocks in depth and covers at least 40 percent of a 5 by 5 patch. The rougher and patchier the surface, the weaker the echo, and high notes lose the most.\\n\\nRealism: mixed. A real rough wall sends back a repeat smeared over a few hundredths of a second, and this plays one clean repeat. Against a cliff in the open that is closer to reality than no echo at all; in a rough cave it can make echoes clearer than they should be. Only the Overkill preset switches it on.\\n\\nPerformance: about five times as many block checks for each surface. Fastest: OFF."
     }
   }
 }
