@@ -33,8 +33,97 @@ public class Config {
         return CONFIG.generateGui().generateScreen(parent);
     }
 
+    // ------------------------------------------------------------------ presets
+    //
+    // The saved settings hold the player's Custom values, the chosen Quality and a few personal
+    // options. While Quality is Performance, Balanced or Realism, the rest of the mod does not
+    // read the saved values: it reads a stand-in built from the defaults (which are the most
+    // realistic values) plus that preset's changes. getInstance() returns whichever applies.
+
+    /** Options that are the player's own and never change with the Quality preset. */
+    private static final java.util.Set<String> PERSONAL = java.util.Set.of("qualityPreset", "debug", "reverbTuning",
+            "soundBlacklist", "soundTickBlacklist", "volumeMultiplier", "disableFXOnUI", "voicechatReverbSelf");
+
+    private static volatile Config effective;
+
+    /** The settings the mod should act on right now. */
     public static Config getInstance() {
+        Config e = effective;
+        return e != null ? e : refreshEffective();
+    }
+
+    /** The saved settings: Custom values, chosen Quality and personal options. */
+    public static Config stored() {
         return CONFIG.instance();
+    }
+
+    public static boolean isPersonal(String fieldName) {
+        return PERSONAL.contains(fieldName);
+    }
+
+    /** Rebuilds what getInstance() returns. Call after loading or changing the saved settings. */
+    public static synchronized Config refreshEffective() {
+        Config saved = CONFIG.instance();
+        Config e = saved;
+        if (saved.qualityPreset != QualityPreset.CUSTOM) {
+            e = new Config(); // every default is the most realistic value
+            applyPreset(e, saved.qualityPreset);
+            copyFields(saved, e, true);
+            e.qualityPreset = saved.qualityPreset;
+        }
+        effective = e;
+        return e;
+    }
+
+    private static void applyPreset(Config c, QualityPreset preset) {
+        switch (preset) {
+            case PERFORMANCE -> {
+                c.raysCast = 100;
+                c.raysBounced = 2;
+                c.maxRayLength = 3;
+                c.tickRate = 10;
+                c.diffractionRoutes = 1;
+                c.diffractionRange = 24;
+                c.diffractionSearchBudget = 3000;
+            }
+            case BALANCED -> {
+                c.raysCast = 200;
+                c.raysBounced = 3;
+                c.maxRayLength = 4;
+                c.tickRate = 10;
+                c.diffractionRoutes = 3;
+                c.diffractionRange = 32;
+                c.diffractionSearchBudget = 6000;
+            }
+            default -> { } // Realism is the defaults; Custom never gets here
+        }
+    }
+
+    /**
+     * Makes Custom a copy of whatever preset is active, then switches to Custom.
+     * Used when the player changes a setting while on a preset.
+     */
+    public static synchronized void switchToCustom() {
+        Config saved = CONFIG.instance();
+        if (saved.qualityPreset == QualityPreset.CUSTOM) return;
+        copyFields(getInstance(), saved, false);
+        saved.qualityPreset = QualityPreset.CUSTOM;
+        refreshEffective();
+    }
+
+    /** Copies either the personal options or everything else from one settings object to another. */
+    private static void copyFields(Config from, Config to, boolean personal) {
+        for (java.lang.reflect.Field f : Config.class.getFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) || f.getAnnotation(SerialEntry.class) == null) continue;
+            if (f.getName().equals("qualityPreset") || PERSONAL.contains(f.getName()) != personal) continue;
+            try {
+                Object value = f.get(from);
+                if (value instanceof List<?> list) value = new ArrayList<>(list);
+                f.set(to, value);
+            } catch (IllegalAccessException ignored) {
+                // public fields of this class are always accessible
+            }
+        }
     }
 
     /** Wavefront's physics mode runs on the permeation pipeline, so it counts as on in either case. */
@@ -42,54 +131,14 @@ public class Config {
         return permeation || wavePhysics;
     }
 
-    // ----- Quality presets -----
-    // Performance, Balanced and Realism replace the Performance tab's values; Custom uses them as set.
-
-    /**
-     * Called when the player changes a value that a preset controls: copies the preset's
-     * values into the Custom fields, then switches to Custom so the change takes effect.
-     */
-    public void switchToCustom() {
-        if (qualityPreset == QualityPreset.CUSTOM) return;
-        int rays = rays(), bounces = bounces(), length = rayLength(), ticks = updateTicks();
-        int routes = routes(), range = bendRange(), budget = searchBudget();
-        raysCast = rays;
-        raysBounced = bounces;
-        maxRayLength = length;
-        tickRate = ticks;
-        diffractionRoutes = routes;
-        diffractionRange = range;
-        diffractionSearchBudget = budget;
-        qualityPreset = QualityPreset.CUSTOM;
-    }
-
-    public int rays() {
-        return switch (qualityPreset) { case PERFORMANCE -> 100; case BALANCED -> 200; case REALISM -> 500; default -> raysCast; };
-    }
-
-    public int bounces() {
-        return switch (qualityPreset) { case PERFORMANCE -> 2; case BALANCED -> 3; case REALISM -> 3; default -> raysBounced; };
-    }
-
-    public int rayLength() {
-        return switch (qualityPreset) { case PERFORMANCE -> 3; case BALANCED -> 4; case REALISM -> 4; default -> maxRayLength; };
-    }
-
-    public int updateTicks() {
-        return switch (qualityPreset) { case PERFORMANCE -> 10; case BALANCED -> 10; case REALISM -> 4; default -> tickRate; };
-    }
-
-    public int routes() {
-        return switch (qualityPreset) { case PERFORMANCE -> 1; case BALANCED -> 3; case REALISM -> 4; default -> diffractionRoutes; };
-    }
-
-    public int bendRange() {
-        return switch (qualityPreset) { case PERFORMANCE -> 24; case BALANCED -> 32; case REALISM -> 64; default -> diffractionRange; };
-    }
-
-    public int searchBudget() {
-        return switch (qualityPreset) { case PERFORMANCE -> 3000; case BALANCED -> 6000; case REALISM -> 12000; default -> diffractionSearchBudget; };
-    }
+    // These read the active values; the preset has already been applied by getInstance().
+    public int rays() { return raysCast; }
+    public int bounces() { return raysBounced; }
+    public int rayLength() { return maxRayLength; }
+    public int updateTicks() { return tickRate; }
+    public int routes() { return diffractionRoutes; }
+    public int bendRange() { return diffractionRange; }
+    public int searchBudget() { return diffractionSearchBudget; }
 
     // ===== Quick Setup tab =====
     @AutoGen(category = "quick", group = "main")

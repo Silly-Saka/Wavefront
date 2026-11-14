@@ -10,8 +10,9 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Added edge diffraction with up to three routes per sound.
 - Blocked sounds now appear to come from the edge or opening they travelled through.
 - Voice chat uses the same occlusion and diffraction.
-- Own settings screen: a Quality switch and one expandable row each for Walls, Diffraction, Reverb and Voice chat. The full option list is behind Expert tuning.
-- Quality presets (Performance, Balanced, Realism, Custom). Defaults are the most realistic values.
+- Own settings screen: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Every setting is in these rows.
+- Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
+- Defaults are the most realistic values.
 - Every tooltip says how the setting affects realism and performance, with a recommended value for each.
 - Plain-language tooltips on the main settings.
 - New icon.

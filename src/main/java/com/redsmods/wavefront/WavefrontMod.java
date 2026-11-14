@@ -39,6 +39,7 @@ public class WavefrontMod /*? if fabric {*/ implements ModInitializer /*?}*/ {
     @Override
     public void onInitialize() {
         Config.CONFIG.load();
+        Config.refreshEffective();
     }
     //?}
 
