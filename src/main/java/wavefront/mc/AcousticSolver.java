@@ -210,8 +210,8 @@ public final class AcousticSolver {
         double[] throughWalls = direct.energy();
         // Water and lava only need working out when some of it is actually in the way.
         Medium listenerIn = cfg.water ? mediumAt(level, db, new BlockPos.MutableBlockPos(), listener.x, listener.y, listener.z) : Medium.AIR;
-        boolean wet = cfg.water && (touchedFluid[0] || listenerIn != Medium.AIR
-                || mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z) != Medium.AIR);
+        boolean wet = cfg.water && (touchedFluid[0] || isFluid(listenerIn)
+                || isFluid(mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z)));
         Propagation.Arrival straightArrival = Propagation.straight(src, straight, throughWalls);
         if (wet) applyMedia(level, db, cfg, straightArrival, src, lis);
         arrivals.add(straightArrival);
@@ -249,7 +249,7 @@ public final class AcousticSolver {
         }
         Propagation.Result r = Propagation.combine(lis, src, arrivals);
         Vec3 apparent = new Vec3(r.apparentPosition[0], r.apparentPosition[1], r.apparentPosition[2]);
-        double gainHF = listenerIn == Medium.AIR ? r.gainHF : r.gainHF * submergedTreble(cfg);
+        double gainHF = isFluid(listenerIn) ? r.gainHF * submergedTreble(cfg) : r.gainHF;
         return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) gainHF, (float) listener.distanceTo(apparent), (float) r.seconds);
     }
 
@@ -269,13 +269,24 @@ public final class AcousticSolver {
         return Math.pow(10.0, -SUBMERGED_TREBLE_DB * Math.max(0f, cfg.submergedHearing) / 20.0);
     }
 
-    /** What fills this exact point: air, water or lava. The surface of a fluid block counts, not just the block. */
+    /**
+     * What fills this exact point: air, water or lava, or null inside a solid block (see
+     * {@link MediaPath#step}). The surface of a fluid block counts, not just the block.
+     */
     private static Medium mediumAt(Level level, AcousticDatabase db, BlockPos.MutableBlockPos pos, double x, double y, double z) {
         pos.set((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
         FluidState fluid = level.getFluidState(pos);
-        if (fluid.isEmpty()) return Medium.AIR;
+        if (fluid.isEmpty()) {
+            BlockState state = level.getBlockState(pos);
+            return state.isAir() || state.getCollisionShape(level, pos).isEmpty() ? Medium.AIR : null;
+        }
         if (y > pos.getY() + fluid.getHeight(level, pos)) return Medium.AIR; // above the surface, in the same block
         return fluid.is(FluidTags.LAVA) ? db.lava() : db.water();
+    }
+
+    /** True for water or lava; false for air and for the inside of a solid block. */
+    private static boolean isFluid(Medium medium) {
+        return medium != null && medium != Medium.AIR;
     }
 
     /** Follows a path point to point, noting what it passes through every quarter block. */
@@ -312,7 +323,8 @@ public final class AcousticSolver {
     public static double speedOfSoundAt(Level level, Vec3 point) {
         AcousticDatabase db = database();
         if (db == null || !Config.getInstance().water) return Medium.AIR.speed;
-        return mediumAt(level, db, new BlockPos.MutableBlockPos(), point.x, point.y, point.z).speed;
+        Medium medium = mediumAt(level, db, new BlockPos.MutableBlockPos(), point.x, point.y, point.z);
+        return medium == null ? Medium.AIR.speed : medium.speed;
     }
 
     /** Adds up what every block on the straight line between listener and source does to the sound. */
@@ -407,8 +419,8 @@ public final class AcousticSolver {
         int range = cfg.echoRange;
         // Under water the echo is timed and weakened by what its path passes through.
         Medium listenerIn = cfg.water ? mediumAt(level, db, new BlockPos.MutableBlockPos(), listener.x, listener.y, listener.z) : Medium.AIR;
-        boolean wet = cfg.water && (listenerIn != Medium.AIR
-                || mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z) != Medium.AIR);
+        boolean wet = cfg.water && (isFluid(listenerIn)
+                || isFluid(mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z)));
         double straightSeconds = wet ? media(level, db, src, lis).seconds() : straight / Medium.AIR.speed;
 
         for (Direction direction : ECHO_DIRECTIONS) {
@@ -485,7 +497,7 @@ public final class AcousticSolver {
                 if (crossingLoss > 0) energy[b] *= Bands.dbToEnergy(crossingLoss);
             }
             Propagation.Result r = Propagation.combine(lis, src, List.of(new Propagation.Arrival(energy, reflection.pathLength, off)));
-            double echoGainHF = listenerIn == Medium.AIR ? r.gainHF : r.gainHF * submergedTreble(cfg);
+            double echoGainHF = isFluid(listenerIn) ? r.gainHF * submergedTreble(cfg) : r.gainHF;
 
             double amplitude = r.gain * Echo.spreading(straight, reflection.pathLength) * loudness * cfg.echoStrength;
             if (amplitude < 0.01) continue; // more than 40 dB down: not worth a sound channel

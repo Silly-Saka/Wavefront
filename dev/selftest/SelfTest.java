@@ -427,6 +427,28 @@ public class SelfTest {
         for (int i = 0; i < 40; i++) swim.step(water, 0.25);
         check("all under water: no crossing, no loss", swim.crossings() == 0 && swim.crossingLossDb() == 0, "");
         near("10 blocks under water take 6.9 ms, against 29.2 ms in air", swim.seconds() * 1000, 6.91, 0.01);
+        // A note block under water: the path starts inside the block itself, then water all the way.
+        MediaPath sunk = new MediaPath();
+        sunk.step(null, 0.5);
+        sunk.step(water, 4.5);
+        check("a source inside a solid block under water starts in water: no crossing", sunk.crossings() == 0 && sunk.crossingLossDb() == 0, "");
+        near("and the whole 5 blocks are timed as water", sunk.seconds(), 5 / water.speed, 1e-9);
+        // Two pools with a stone wall between them: the wall is not air.
+        MediaPath walled = new MediaPath();
+        walled.step(water, 3);
+        walled.step(null, 1);
+        walled.step(water, 3);
+        check("a solid wall between two pools is not counted as a surface", walled.crossings() == 0, "");
+        MediaPath shore = new MediaPath();
+        shore.step(null, 0.5);
+        shore.step(Medium.AIR, 4);
+        shore.step(water, 2);
+        near("a block on the shore heard from under water: one crossing", shore.crossings(), 1, 0);
+        near("with 4.5 blocks counted as air", shore.airLength(), 4.5, 1e-9);
+        MediaPath buried = new MediaPath();
+        buried.step(null, 3);
+        near("a path wholly inside solid blocks is timed as air", buried.seconds(), 3 / 343.0, 1e-9);
+
         Propagation.Arrival wet = new Propagation.Arrival(new double[]{1, 1, 1, 1, 1, 1, 1, 1}, 10, new double[]{10, 0, 0});
         near("an arrival starts with its travel time through air", wet.seconds, 10 / 343.0, 1e-9);
         wet.seconds = swim.seconds();
