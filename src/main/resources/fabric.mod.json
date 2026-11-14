@@ -1,0 +1,46 @@
+{
+	"schemaVersion": 1,
+	"id": "${id}",
+	"version": "${version}",
+	"name": "${name}",
+	"description": "${description}",
+	"authors": [
+		"Silly-Saka"
+	],
+	"contributors": [
+		"RedLife (Sound Physics Perfected, the mod this is built on)",
+		"Souldbminer",
+		"Tellinq"
+	],
+	"contact": {
+		"homepage": "${modrinth}",
+		"sources": "${source}",
+		"issues": "${issues}"
+	},
+	"license": "${license}",
+	"icon": "assets/${id}/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"voicechat": [
+			"com.redsmods.wavefront.integration.SVC"
+		]
+	},
+	"depends": {
+		"fabricloader": "*",
+		"minecraft": "${mcdep}",
+		"java": ">=17",
+		"fabric-api": "*",
+		"yet_another_config_lib_v3": ">=${yacl_version}"
+	},
+	"breaks": {
+		"sound_physics_perfected": "*"
+	},
+	"suggests": {
+		"voicechat": ">=${mcdep}-${voicechat_api_version}"
+	},
+	"custom": {
+		"modmenu": {
+			"update_checker": false
+		}
+	}
+}

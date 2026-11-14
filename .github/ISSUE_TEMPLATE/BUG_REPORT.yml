@@ -1,0 +1,65 @@
+name: Bug Report
+description: File a bug report
+assignees: []
+
+body:
+  - type: dropdown
+    id: modLoader
+    attributes:
+      label: Mod Loader
+      description: Which Mod Loader are you using?
+      options:
+        - Fabric
+        - NeoForge
+        - Forge
+        - Connector
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: modVersion
+    attributes:
+      label: Mod Version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: gameVersion
+    attributes:
+      label: Game Version
+      placeholder: 1.21.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What is the bug?
+      description: What happened and what did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Include a list of mods, or any other information to replicate the bug you have.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Or crash report
+    validations:
+      required: false
+
+  - type: textarea
+    id: modlist
+    attributes:
+      label: Mod List (not neccessary if you're lazy asf, but i will ask for it if i can't reproduce)
+    validations:
+      required: false
