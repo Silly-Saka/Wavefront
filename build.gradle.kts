@@ -246,6 +246,11 @@ tasks.jar {
     from("src/main/resources") {
         include("META-INF/services/**")
     }
+    // Both licences travel with the jar: Wavefront's own, and the notice of the mod it is built on.
+    from(rootProject.file("LICENSE")) {
+        rename { "LICENSE-Wavefront.txt" }
+    }
+    from(rootProject.file("LICENSE-Sound-Physics-Perfected.txt"))
 
     manifest {
         attributes(

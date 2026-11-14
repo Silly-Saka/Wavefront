@@ -29,6 +29,12 @@ jobs:
           chmod +x gradlew
           ./gradlew :26.3-fabric:build --stacktrace
 
+      - name: Check both licence files are in the jar
+        run: |
+          JAR=$(ls versions/26.3-fabric/build/libs/*.jar | grep -v sources | head -1)
+          unzip -l "$JAR" | grep -E "LICENSE-Wavefront.txt|LICENSE-Sound-Physics-Perfected.txt"
+          test "$(unzip -l "$JAR" | grep -cE "LICENSE-Wavefront.txt|LICENSE-Sound-Physics-Perfected.txt")" = "2"
+
       - uses: actions/upload-artifact@v6
         with:
           name: wavefront-jar
