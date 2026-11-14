@@ -43,7 +43,7 @@ public class Config {
     /** Options that are the player's own and never change with the Quality preset. */
     private static final java.util.Set<String> PERSONAL = java.util.Set.of("qualityPreset", "debug", "reverbTuning",
             "soundBlacklist", "soundTickBlacklist", "volumeMultiplier", "disableFXOnUI", "voicechatReverbSelf",
-            "showSoundPaths", "showBassField");
+            "showSoundPaths", "showBassField", "soundDots", "soundDotAmount");
 
     private static volatile Config effective;
 
@@ -352,6 +352,18 @@ public class Config {
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
     @CustomDescription("yacl3.config.wavefront:config.autoOpenness.description")
     @SerialEntry public boolean autoOpenness = true;
+
+    // ===== Seeing sound =====
+    @AutoGen(category = "quick", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.soundDots.description")
+    @SerialEntry public boolean soundDots = false;
+
+    @AutoGen(category = "quick", group = "main")
+    @FloatSlider(min = 0.25f, max = 3, step = 0.25f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.soundDotAmount.description")
+    @SerialEntry public float soundDotAmount = 1.0f;
 
     // ===== Seeing what the mod is doing =====
     @AutoGen(category = "quick", group = "main")

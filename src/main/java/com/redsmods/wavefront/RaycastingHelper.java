@@ -491,6 +491,7 @@ public class RaycastingHelper {
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setBassSend(solved.bassSend, false);
             playing.setAttenuationMultiplier(1f);
+            if (wavefront.mc.SoundDots.on()) wavefront.mc.SoundDots.emit(world, player, playerPos, sourcePos, originalSound.getSource().name(), echoVolume, solved, true);
             if (!lateInRound) updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.seconds);
             return;
         }
@@ -502,6 +503,7 @@ public class RaycastingHelper {
                 Math.max(0.01f, volume), pitch, original, 1f, 1f);
         newSound.setBandGains(solved.gain, solved.gainLF, solved.gainHF, true);
         newSound.setBassSend(solved.bassSend, true);
+        if (wavefront.mc.SoundDots.on()) wavefront.mc.SoundDots.emit(world, player, playerPos, sourcePos, originalSound.getSource().name(), echoVolume, solved, false);
         newSound.setDelaySeconds(solved.seconds); // 343 blocks per second in air, faster under water
         soundPermInstanceMap.put(original, newSound);
 

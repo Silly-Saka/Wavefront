@@ -98,6 +98,8 @@ public final class AcousticSolver {
         public boolean waveBass = false;
         /** True if part of the sound came through the blocks themselves. */
         public boolean throughBlocks = false;
+        /** Where on a surface that part comes out, or null. */
+        public Vec3 thudFrom = null;
     }
 
     private static final String DATABASE_RESOURCE = "/assets/wavefront/acoustics/acoustic_materials.json";
@@ -353,6 +355,7 @@ public final class AcousticSolver {
         Solved result = finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet, throughBlocks);
         result.partial = partial;
         result.throughBlocks = throughBlocks != null;
+        if (solidPath != null) result.thudFrom = new Vec3(solidPath.from[0], solidPath.from[1], solidPath.from[2]);
         return result;
     }
 

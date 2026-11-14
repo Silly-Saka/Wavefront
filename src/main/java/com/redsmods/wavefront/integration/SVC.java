@@ -141,6 +141,8 @@ public class SVC implements VoicechatPlugin {
             if (channelData.solved == null || now - channelData.solvedAt > 250) {
                 channelData.solved = wavefront.mc.AcousticSolver.solve(mc.level, mc.player, listenerPos, sourcePos);
                 channelData.solvedAt = now;
+                // Voices carry about three times as far as most sounds, hence the volume of 3.
+                if (wavefront.mc.SoundDots.on()) wavefront.mc.SoundDots.emit(mc.level, mc.player, listenerPos, sourcePos, "VOICE", 3f, channelData.solved, true);
             }
             try {
                 if (Config.getInstance().voicechatReverb) fxHandler.applyReverbToSource(openALSource);

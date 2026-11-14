@@ -19,6 +19,7 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Water and lava: faster travel, a loss at each surface crossing, duller and less directional hearing when submerged, and Doppler scaled to the listener's medium.
 - Sound through blocks: steps, pistons, doors, block breaking and explosions are heard as thuds through floors and walls. Settings: Sound Through Blocks, Thud Strength, Thud Range.
 - Blocks from other mods count as partly open when a fifth or more of their texture is see-through (Guess Openness From Textures).
+- Sound Dots: sounds leave marks on the surfaces they reach, for playing without hearing. Shape and colour show the kind of sound, the number shows how loud it is to you. Works on servers; nothing is drawn through walls. The idea is from Vercidium's ray-traced audio work.
 - Show Sound Paths and Show Bass Field draw what the mod worked out, in the world. They only work in singleplayer worlds that are not open to LAN, because the lines show through walls.
 - Bass waves: the lowest notes (around 63 and 125 Hz) come from a wave simulation of the blocks round the listener, run on background threads. Settings: Bass Waves, Bass Wave Strength, Bass Wave Detail, Bass Wave Range.
 - Full Bass: bass can be louder than the rest of a sound, through a second effect channel. Sounds behind walls and round corners keep their thump. Applies to voice chat too.

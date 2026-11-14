@@ -20,6 +20,7 @@ The goal is to make Minecraft's audio behave a bit more like real sound.
 - **Sound through blocks** — Footsteps, pistons, explosions, and other impacts can travel through connected solid blocks.
 - **Modded block support** — Unknown blocks are assigned approximate acoustic properties based on their tags, sounds, and textures.
 - **Simple Voice Chat support** — Voice audio uses the same occlusion and diffraction calculations.
+- **Sound dots** — An optional accessibility view. Sounds leave marks on the floor and walls they reach, with a shape and colour for each kind of sound and more marks for louder ones. Nothing is drawn through walls. Inspired by Vercidium's ray-traced audio work.
 
 Wavefront keeps Sound Physics Perfected's ray-traced reverb system while adding its own calculations for how sound travels through and around the world.
 
