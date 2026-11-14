@@ -460,7 +460,7 @@ public class RaycastingHelper {
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
-            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume);
+            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.pathLength);
             return;
         }
         if (originalSound instanceof RedTickableInstance) return; // classic-mode sound left over from a settings change
@@ -488,8 +488,8 @@ public class RaycastingHelper {
      * the length of its longer path and made quieter by its filter.
      *
      * Music and looping sounds get echoes too when that setting is on. Their copies last as long
-     * as the sound does and are re-aimed as the listener moves, but the lateness of each copy is
-     * fixed when it starts.
+     * as the sound does and are re-aimed as the listener moves. Loops also gain echoes later, as
+     * surfaces come into play (see updateEchoes); streamed music only gets the ones found here.
      */
     private static void queueEchoes(Level world, Player player, Vec3 playerPos, Vec3 sourcePos, SoundInstance originalSound,
                                     SoundInstance original, RedPermeatedSoundInstance main, float volume, float pitch) {
@@ -508,6 +508,8 @@ public class RaycastingHelper {
                 copy.setEchoBounce(echo.bounce);
                 copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, true);
                 copy.setDelaySeconds(echo.pathLength / 343f);
+                // A loop's echo can be started again later, so it need not hold a channel while silent.
+                copy.setRetireWhenSilent(original.isLooping() && !originalSound.getSound().shouldStream());
                 main.getEchoCopies().add(copy);
                 queueSound(copy);
             }
@@ -517,16 +519,28 @@ public class RaycastingHelper {
     }
 
     /**
-     * Wavefront: re-aims the echoes of a sound that is still playing. An echo whose surface is no
-     * longer there fades to silence but stays ready in case the surface comes back into play.
+     * Wavefront: keeps the echoes of a playing sound up to date. Each echo is re-aimed; one whose
+     * surface is no longer there fades to silence; and a looping sound gains a new echo whenever
+     * a surface comes into play, which is what lets a moving minecart echo off walls it reaches.
+     *
+     * @param directPath how far the sound itself currently travels to the listener, in blocks
      */
     private static void updateEchoes(Level world, Player player, Vec3 playerPos, Vec3 sourcePos,
-                                     RedPermeatedSoundInstance main, float volume) {
-        if (main.getEchoCopies().isEmpty()) return;
+                                     RedPermeatedSoundInstance main, float volume, float directPath) {
         try {
+            Config cfg = Config.getInstance();
+            // A new echo has to start partway through the sound, in step with it. That works for
+            // loops held in memory, not for streamed music.
+            boolean canJoin = cfg.echoes && cfg.echoContinuous && cfg.soundDelay && SoundClock.supported()
+                    && main.isLooping() && !main.getSound().shouldStream();
+            main.getEchoCopies().removeIf(RedPermeatedSoundInstance::isStopped);
+            if (main.getEchoCopies().isEmpty() && !canJoin) return;
+
             List<AcousticSolver.EchoResult> now = AcousticSolver.echoes(world, player, playerPos, sourcePos, echoLoudness(playerPos, sourcePos, volume));
+            boolean[] covered = new boolean[Direction.values().length];
             Vec3 moving = main.getSourceVelocity();
             for (RedPermeatedSoundInstance copy : main.getEchoCopies()) {
+                covered[copy.getEchoDirection()] = true;
                 // The mirror image moves like the source, with the part towards the surface reversed.
                 Direction.Axis axis = Direction.values()[copy.getEchoDirection()].getAxis();
                 copy.setEchoVelocity(new Vec3(axis == Direction.Axis.X ? -moving.x : moving.x,
@@ -542,6 +556,22 @@ public class RaycastingHelper {
                     copy.setEchoBounce(match.bounce);
                     copy.setBandGains(echoFilterGain(match.gain, volume), match.gainLF, match.gainHF, false);
                 }
+            }
+
+            if (!canJoin || main.alSource() <= 0) return;
+            for (AcousticSolver.EchoResult echo : now) {
+                if (covered[echo.direction]) continue;
+                RedPermeatedSoundInstance copy = main.newEchoCopy(echo.position, Math.max(0.01f, volume));
+                copy.setEchoDirection(echo.direction);
+                copy.setEchoBounce(echo.bounce);
+                copy.setBandGains(0f, echo.gainLF, echo.gainHF, true); // fade in from silence
+                copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, false);
+                copy.setDelaySeconds(echo.pathLength / 343f);
+                copy.setFollowSource(main.alSource());
+                copy.setFollowLag(Math.max(0f, (echo.pathLength - directPath) / 343f));
+                copy.setRetireWhenSilent(true);
+                main.getEchoCopies().add(copy);
+                queueSound(copy);
             }
         } catch (Exception e) {
             System.err.println("Error updating echoes: " + e.getMessage());

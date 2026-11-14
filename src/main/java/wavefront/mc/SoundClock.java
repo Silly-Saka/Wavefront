@@ -1,6 +1,7 @@
 package wavefront.mc;
 
 import org.lwjgl.openal.AL10;
+import org.lwjgl.openal.AL11;
 import org.lwjgl.openal.ALC10;
 import org.lwjgl.openal.SOFTDeviceClock;
 import org.lwjgl.openal.SOFTSourceStartDelay;
@@ -71,8 +72,53 @@ public final class SoundClock {
         return reference + Math.min(delay, MAX_DELAY_NANOS);
     }
 
+    /** A source that should join in partway through, a set time behind one that is already playing. */
+    private record Follow(int leader, double lagSeconds) {}
+
+    private static final Map<Integer, Follow> follows = new ConcurrentHashMap<>();
+
+    /**
+     * Remembers that a source should start partway through its sound, {@code lagSeconds} behind
+     * where {@code leader} is at that moment. Used for an echo that begins while its sound is
+     * already playing.
+     */
+    public static void follow(int source, int leader, double lagSeconds) {
+        follows.put(source, new Follow(leader, lagSeconds));
+    }
+
+    /** Moves a source's starting point to match its leader. Only works for sounds held whole in memory. */
+    private static void joinIn(int source, Follow follow) {
+        try {
+            if (!AL10.alIsSource(follow.leader)) return;
+            int buffer = AL10.alGetSourcei(source, AL10.AL_BUFFER);
+            if (buffer == 0) return;
+            int bytes = AL10.alGetBufferi(buffer, AL10.AL_SIZE), channels = AL10.alGetBufferi(buffer, AL10.AL_CHANNELS);
+            int bits = AL10.alGetBufferi(buffer, AL10.AL_BITS), rate = AL10.alGetBufferi(buffer, AL10.AL_FREQUENCY);
+            if (bytes <= 0 || channels <= 0 || bits < 8 || rate <= 0) return;
+            double length = bytes / (channels * (bits / 8.0)) / rate;
+            // The lag is in real seconds; a sound played faster or slower covers more or less of itself in that time.
+            double at = AL10.alGetSourcef(follow.leader, AL11.AL_SEC_OFFSET)
+                    - follow.lagSeconds * AL10.alGetSourcef(follow.leader, AL10.AL_PITCH);
+            if (AL10.alGetSourcei(source, AL10.AL_LOOPING) == AL10.AL_TRUE) {
+                at -= Math.floor(at / length) * length; // wrap round the loop
+            }
+            at = Math.max(0.0, Math.min(length - 0.01, at));
+            AL10.alSourcef(source, AL11.AL_SEC_OFFSET, (float) at);
+            AL10.alGetError(); // a refused offset just means the copy starts from the beginning
+        } catch (Throwable ignored) {
+            // the copy still plays, from the beginning
+        }
+    }
+
     /** Called in place of alSourcePlay: starts the source at its scheduled time if it has one. */
     public static void play(int source) {
+        Follow follow = follows.remove(source);
+        if (follow != null) {
+            startTimes.remove(source);
+            joinIn(source, follow);
+            AL10.alSourcePlay(source);
+            return;
+        }
         Long start = startTimes.remove(source);
         if (start != null && supported == 1) {
             try {
@@ -88,6 +134,7 @@ public final class SoundClock {
     /** Forgets everything; called when the sound engine restarts. */
     public static void reset() {
         startTimes.clear();
+        follows.clear();
         supported = -1;
     }
 }

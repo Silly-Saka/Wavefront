@@ -58,10 +58,15 @@ public abstract class ShadowInstanceToChannelMixin {
                 // Wavefront: Minecraft stores the channel here just before it queues the sound to
                 // start, so this is the moment to say when that channel should start.
                 if (value != null && key instanceof com.redsmods.wavefront.wrappers.RedPermeatedSoundInstance timed
-                        && timed.getStartNanos() != 0L) {
+                        && (timed.getStartNanos() != 0L || timed.getFollowSource() > 0)) {
                     try {
                         int source = ((SourceAccessor) ((SourceManagerAccessor) value).getChannel()).getSource();
-                        wavefront.mc.SoundClock.schedule(source, timed.getStartNanos());
+                        if (timed.getFollowSource() > 0) {
+                            // An echo joining a sound that is already playing: start partway through, in step with it.
+                            wavefront.mc.SoundClock.follow(source, timed.getFollowSource(), timed.getFollowLag());
+                        } else {
+                            wavefront.mc.SoundClock.schedule(source, timed.getStartNanos());
+                        }
                     } catch (Throwable ignored) {
                         // without a start time the sound simply starts straight away
                     }

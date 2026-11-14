@@ -34,6 +34,12 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     /** Wavefront: for an echo copy, how fast the mirror image of the sound source moves, in blocks per second. */
     @lombok.Setter private volatile Vec3 echoVelocity = Vec3.ZERO;
     private boolean echoMovingLastTick = false;
+    /** Wavefront: for an echo that joins a sound already playing: that sound's OpenAL source, and how far behind it to start. */
+    @Getter @lombok.Setter private int followSource = -1;
+    @Getter @lombok.Setter private float followLag = 0f;
+    /** Wavefront: an echo copy that can be started again later gives its channel back after 5 silent seconds. */
+    @lombok.Setter private boolean retireWhenSilent = false;
+    private int silentTicks = 0;
     /** Wavefront: for an echo copy, which of the six block directions its surface lies in. */
     @Getter @lombok.Setter private int echoDirection = -1;
     /** Wavefront: the echo copies of this sound, kept so they can follow it and stop with it. */
@@ -131,6 +137,11 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         super.updateVolume();
         super.updatePitch();
         updateMuffle();
+        if (retireWhenSilent && targetGain <= 0f && gain <= 0.002f) {
+            if (++silentTicks > 100) echoStopped = true;
+        } else {
+            silentTicks = 0;
+        }
 
         // An echo comes from the mirror image of the source, which moves when the source does.
         // Telling OpenAL its speed gives the echo its own, correct Doppler shift.
@@ -140,6 +151,19 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
             wavefront.mc.Doppler.setSourceVelocity(id, velocity.x, velocity.y, velocity.z);
         }
         echoMovingLastTick = moving;
+    }
+
+    /** Wavefront: this sound's OpenAL source, or -1 if it has not been given one yet. */
+    public int alSource() {
+        return sourceSet ? id : -1;
+    }
+
+    /** Wavefront: a second copy of this sound, to be used as one of its echoes. */
+    public RedPermeatedSoundInstance newEchoCopy(Vec3 position, float volume) {
+        RedPermeatedSoundInstance copy = new RedPermeatedSoundInstance(getIdentifier(), getSound(), getSource(),
+                position, volume, getPitch(), wrappedSound(), 1f, 1f);
+        copy.setFixedEcho(true);
+        return copy;
     }
 
     /** Wavefront: tells an echo copy that the sound it repeats has been stopped. */
