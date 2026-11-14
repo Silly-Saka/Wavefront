@@ -1,6 +1,7 @@
 package wavefront.mc;
 
 import com.redsmods.wavefront.config.Config;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
@@ -32,10 +33,23 @@ public final class Visualiser {
 
     private static final ConcurrentLinkedDeque<Trace> TRACES = new ConcurrentLinkedDeque<>();
 
+    /**
+     * The drawings show where sounds come from, through walls. On a server with other players
+     * that would give away where they are, so drawing only works in a singleplayer world that
+     * has not been opened to LAN.
+     */
+    private static boolean allowedHere() {
+        Minecraft client = Minecraft.getInstance();
+        return client.hasSingleplayerServer() && client.getSingleplayerServer() != null && !client.getSingleplayerServer().isPublished();
+    }
+
     /** True if the solver should keep a note of each sound's paths. */
     public static boolean wantsPaths() {
-        return Config.getInstance().showSoundPaths;
+        return Config.getInstance().showSoundPaths && allowed;
     }
+
+    /** Whether drawing is allowed in the world the player is in, checked once a tick on the game thread. */
+    private static volatile boolean allowed = false;
 
     /** Called by the solver, from any thread. */
     static void record(Vec3 source, Vec3 listener, boolean blocked, List<double[][]> routes, StructureBorne.Path solid) {
@@ -46,8 +60,9 @@ public final class Visualiser {
     /** Called once a game tick on the game thread. */
     public static void tick(Level level, Vec3 listener) {
         Config cfg = Config.getInstance();
-        if (!cfg.showSoundPaths) TRACES.clear();
-        if (!cfg.showSoundPaths && !cfg.showBassField) return;
+        allowed = (cfg.showSoundPaths || cfg.showBassField) && allowedHere();
+        if (!cfg.showSoundPaths || !allowed) TRACES.clear();
+        if (!allowed) return;
         try {
             if (cfg.showSoundPaths) drawPaths();
             if (cfg.showBassField) drawBassField(level, listener);
