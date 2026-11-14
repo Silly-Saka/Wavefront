@@ -123,7 +123,7 @@ public class WavefrontScreen extends Screen {
         int footerY = this.height - 26;
         int footerWidth = Math.min(110, (columnWidth - 8) / 2);
         addRenderableWidget(Button.builder(Component.translatable("wavefront.screen.expert"),
-                        b -> this.minecraft.setScreen(Config.configScreen(this)))
+                        b -> this.minecraft.gui.setScreen(Config.configScreen(this)))
                 .bounds(left, footerY, footerWidth, 20)
                 .tooltip(Tooltip.create(Component.translatable("wavefront.screen.expert.tip")))
                 .build());
@@ -286,7 +286,7 @@ public class WavefrontScreen extends Screen {
     @Override
     public void onClose() {
         Config.CONFIG.save();
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 
     // ------------------------------------------------------------------ slider
