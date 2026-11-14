@@ -43,6 +43,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Unique;
 import wavefront.mc.AcousticSolver;
+import wavefront.mc.SoundClock;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -195,10 +196,18 @@ public class RaycastingHelper {
             }
         }
 
+        // Wavefront: every sound started this tick is timed from the same instant on the audio
+        // device's clock, so the gaps between them are exact to one audio sample.
+        long reference = Config.getInstance().wavePhysics && Config.getInstance().soundDelay ? SoundClock.now() : 0L;
+        if (reference != 0L) reference += SoundClock.LEAD_NANOS;
+
         // Play all sounds from the snapshot
         for (SoundInstance newSound : soundsToPlay) {
             if (newSound == null)
                 continue;
+            if (reference != 0L && newSound instanceof RedPermeatedSoundInstance timed) {
+                timed.setStartNanos(SoundClock.startTime(reference, timed.getDelaySeconds()));
+            }
             client.getSoundManager().play(newSound);
         }
 
@@ -459,12 +468,13 @@ public class RaycastingHelper {
                 originalSound.getSound(), originalSound.getSource(), solved.position,
                 Math.max(0.01f, volume), pitch, original, 1f, 1f);
         newSound.setBandGains(solved.gain, solved.gainLF, solved.gainHF, true);
+        newSound.setDelaySeconds(solved.pathLength / 343f); // speed of sound, 343 blocks per second
         soundPermInstanceMap.put(original, newSound);
 
         if (Config.getInstance().debug == DebugType.ACTION_BAR) client.player.sendOverlayMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength)));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
         else if (Config.getInstance().debug == DebugType.CHAT) client.player.sendSystemMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength)));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
 
         queueSound(newSound);
     }

@@ -23,6 +23,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import wavefront.acoustics.AcousticDatabase;
 import wavefront.acoustics.AcousticMaterial;
+import wavefront.acoustics.AirAbsorption;
 import wavefront.acoustics.Aperture;
 import wavefront.acoustics.Bands;
 import wavefront.acoustics.Occlusion;
@@ -191,14 +192,14 @@ public final class AcousticSolver {
         db.setWallStrength(cfg.wallStrength);
         BlockPos sourceCell = BlockPos.containing(source);
 
-        Occlusion direct = traceDirect(level, db, listener, source, sourceCell);
-        if (!direct.blocked()) return new Solved(source, 1f, 1f, 1f, straight);
-
         double[] lis = {listener.x, listener.y, listener.z};
         double[] src = {source.x, source.y, source.z};
         List<Propagation.Arrival> arrivals = Propagation.list();
+
+        Occlusion direct = traceDirect(level, db, listener, source, sourceCell);
         double[] throughWalls = direct.energy();
         arrivals.add(Propagation.straight(src, straight, throughWalls));
+        if (!direct.blocked()) return finish(listener, lis, src, arrivals, cfg); // in plain view: only the air acts on it
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
@@ -221,6 +222,14 @@ public final class AcousticSolver {
             }
         }
 
+        return finish(listener, lis, src, arrivals, cfg);
+    }
+
+    /** Lets the air take its share from every arrival, then merges them into one result. */
+    private static Solved finish(Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals, Config cfg) {
+        for (Propagation.Arrival arrival : arrivals) {
+            AirAbsorption.apply(arrival.energy, arrival.length, cfg.airAbsorptionStrength);
+        }
         Propagation.Result r = Propagation.combine(lis, src, arrivals);
         Vec3 apparent = new Vec3(r.apparentPosition[0], r.apparentPosition[1], r.apparentPosition[2]);
         return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) r.gainHF, (float) listener.distanceTo(apparent));

@@ -11,14 +11,17 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Edge diffraction.** When the straight line is blocked, the mod finds routes through air, pulls them tight round the block edges, and applies the standard barrier formula per band. High notes lose more than low notes.
 - **Opening size.** A doorway or small hole only passes the sound that lands on it, so narrow gaps let less bass through than wide ones. Long passages are treated as guides, not holes.
 - **Sound direction.** A blocked sound appears to come from the edge or opening it travelled through.
-- **Voice chat.** Simple Voice Chat voices get the same treatment.
+- **Speed of sound.** Sounds arrive late over distance, started at an exact moment on the audio device's clock. Two sources playing the same sound at the same instant interfere with each other depending on where you stand.
+- **Air absorption.** High notes fade over distance, from the ISO 9613-1 formula.
+- **Doppler shift.** Pitch changes with how fast you and a sound move relative to each other.
+- **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
 Settings open from Mod Menu: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Open the **Walls** row and turn **Sound Physics** off to get the original Sound Physics Perfected behaviour back.
 
 ## What is planned
 
-Speed-of-sound delay, Doppler, air absorption, distinct echoes, underwater sound, a wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
+Distinct echoes, underwater sound, a wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
 
 ## Known limits
 
@@ -39,7 +42,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 83 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 89 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 

@@ -35,6 +35,8 @@ public class RedTickableInstance implements TickableSoundInstance {
     private final boolean isBlacklisted;
     @Getter private float originalVolume;
     @Getter private Vec3 originalPosition;
+    /** Wavefront: how fast the real sound source is moving, in blocks per second. */
+    protected Vec3 sourceVelocity = Vec3.ZERO;
 
     public RedTickableInstance(Identifier location, Sound sound, SoundSource source, Vec3 position, float volume, float pitch, SoundInstance wrapped, float attenuationMultiplier) {
         this.location = location;
@@ -94,6 +96,7 @@ public class RedTickableInstance implements TickableSoundInstance {
                     wrapped.getZ() - originalPosition.z
             );
             originalPosition = new Vec3(wrapped.getX(), wrapped.getY(), wrapped.getZ());
+            sourceVelocity = delta.scale(20.0); // blocks per tick to blocks per second, for Doppler
             x += delta.x;
             y += delta.y;
             z += delta.z;

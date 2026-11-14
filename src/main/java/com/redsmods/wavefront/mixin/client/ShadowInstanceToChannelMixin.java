@@ -55,6 +55,17 @@ public abstract class ShadowInstanceToChannelMixin {
             @Override
             public ChannelAccess.ChannelHandle put(SoundInstance key,
                                                    ChannelAccess.ChannelHandle value) {
+                // Wavefront: Minecraft stores the channel here just before it queues the sound to
+                // start, so this is the moment to say when that channel should start.
+                if (value != null && key instanceof com.redsmods.wavefront.wrappers.RedPermeatedSoundInstance timed
+                        && timed.getStartNanos() != 0L) {
+                    try {
+                        int source = ((SourceAccessor) ((SourceManagerAccessor) value).getChannel()).getSource();
+                        wavefront.mc.SoundClock.schedule(source, timed.getStartNanos());
+                    } catch (Throwable ignored) {
+                        // without a start time the sound simply starts straight away
+                    }
+                }
                 return original.put(key, value);
             }
 

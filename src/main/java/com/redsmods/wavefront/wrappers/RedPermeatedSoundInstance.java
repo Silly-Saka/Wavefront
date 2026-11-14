@@ -23,6 +23,10 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     private boolean bandMode = false;
     private float gain = 1f, gainLF = 1f, gainHF = 1f;
     private float targetGain = 1f, targetGainLF = 1f, targetGainHF = 1f;
+    /** Wavefront: seconds the sound takes to reach the listener, and the device-clock time it should start at (0 = unset). */
+    @Getter @lombok.Setter private float delaySeconds = 0f;
+    @Getter @lombok.Setter private long startNanos = 0L;
+    private boolean movingLastTick = false;
 
     public RedPermeatedSoundInstance(Identifier soundID, Sound sound, SoundSource category, Vec3 position, float volume, float pitch, SoundInstance wrapped, float permeationIndex, float attenuationMultiplier) {
         super(soundID, sound, category,position, volume, pitch, wrapped, attenuationMultiplier);
@@ -52,6 +56,17 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         super.updateVolume();
         super.updatePitch();
         updateMuffle();
+        updateDopplerVelocity();
+    }
+
+    /** Wavefront: keeps OpenAL informed of the real source's speed so it can shift the pitch. */
+    private void updateDopplerVelocity() {
+        if (!sourceSet || !AL10.alIsSource(id)) return;
+        boolean moving = sourceVelocity.lengthSqr() > 1.0e-6;
+        if (moving || movingLastTick) {
+            wavefront.mc.Doppler.setSourceVelocity(id, sourceVelocity.x, sourceVelocity.y, sourceVelocity.z);
+        }
+        movingLastTick = moving;
     }
 
     /**

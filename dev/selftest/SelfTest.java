@@ -323,6 +323,37 @@ public class SelfTest {
         routes = new PathFinder(p, 6000).findRoutes(new double[]{-2.5, 0.5, 0.5}, new double[]{3.5, 1.62, 0.5}, 3, 8);
         check("source inside its own block still finds routes", !routes.isEmpty(), "(" + routes.size() + " routes)");
 
+        // ---------------- air absorption (checked against the table in ISO 9613-2)
+        double[] iso20C70 = {0.1, 0.3, 1.1, 2.8, 5.0, 9.0, 22.9, 76.6}; // dB per km
+        boolean matchesIso = true;
+        StringBuilder isoDetail = new StringBuilder();
+        for (int b = 0; b < Bands.COUNT; b++) {
+            double perKm = AirAbsorption.dbPerMetre(Bands.HZ[b], 20, 70) * 1000;
+            isoDetail.append(String.format("%.2f ", perKm));
+            if (Math.abs(perKm - iso20C70[b]) > Math.max(0.06, iso20C70[b] * 0.03)) matchesIso = false;
+        }
+        check("air absorption formula matches ISO 9613-2 at 20 C, 70 %", matchesIso, "(" + isoDetail.toString().trim() + " dB/km)");
+        double[] iso10C70 = {0.1, 0.4, 1.0, 1.9, 3.7, 9.7, 32.8, 117};
+        boolean matchesCold = true;
+        for (int b = 0; b < Bands.COUNT; b++) {
+            double perKm = AirAbsorption.dbPerMetre(Bands.HZ[b], 10, 70) * 1000;
+            if (Math.abs(perKm - iso10C70[b]) > Math.max(0.06, iso10C70[b] * 0.03)) matchesCold = false;
+        }
+        check("and at 10 C, 70 %", matchesCold, "");
+        double[] air = new double[Bands.COUNT];
+        java.util.Arrays.fill(air, 1.0);
+        AirAbsorption.apply(air, 64, 1.0);
+        near("64 blocks of air takes about 6.7 dB off 8 kHz", Bands.energyToDb(air[7]), 6.74, 0.1);
+        check("and under 0.1 dB off 250 Hz", Bands.energyToDb(air[2]) < 0.1, String.format("(%.3f dB)", Bands.energyToDb(air[2])));
+        double[] noAir = new double[Bands.COUNT];
+        java.util.Arrays.fill(noAir, 1.0);
+        AirAbsorption.apply(noAir, 64, 0);
+        check("strength 0 turns air absorption off", noAir[7] == 1.0, "");
+        Propagation.Result distant = Propagation.combine(new double[]{0, 0, 0}, new double[]{64, 0, 0},
+                List.of(Propagation.straight(new double[]{64, 0, 0}, 64, air)));
+        check("a distant sound in plain view keeps its volume and loses a little treble", distant.gain > 0.94 && distant.gainHF < 0.75 && distant.gainHF > 0.55,
+                String.format("(gain %.3f, gainHF %.3f)", distant.gain, distant.gainHF));
+
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
         check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");

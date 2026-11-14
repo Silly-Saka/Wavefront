@@ -44,6 +44,11 @@
           "summary": "Sound bends round corners and through openings.",
           "summary_off": "Blocked sounds are only heard through walls."
         },
+        "distance": {
+          "title": "Distance and motion",
+          "summary": "Sound arrives late over distance, dulls in air and shifts pitch with speed.",
+          "summary_off": "Sounds arrive instantly, as in vanilla."
+        },
         "reverb": {
           "title": "Reverb",
           "summary": "Echo that matches the space you are in.",
@@ -110,7 +115,8 @@
         "physics": "Walls and Diffraction",
         "physics.group": {
           "walls": "Walls",
-          "bending": "Diffraction"
+          "bending": "Diffraction",
+          "distance": "Distance and Motion"
         },
         "voicechat": "Voice Chat",
         "voicechat.group": {
@@ -303,7 +309,15 @@
       "qualityPreset": "Quality",
       "qualityPreset.description": "One switch for how much work the mod does. It sets everything on the Performance tab at once.\\n\\nRealism: the Realism preset is the most thorough (500 rays, 3 bounces, sounds re-checked every 4 ticks, 4 diffraction routes out to 64 blocks). Most realistic: Realism, which is the default.\\n\\nPerformance: the Performance preset is the lightest (100 rays, 2 bounces, sounds re-checked every 10 ticks, 1 diffraction route out to 24 blocks). Fastest: Performance. If the game stutters when many sounds play, try Balanced (200 rays, 3 bounces, sounds re-checked every 10 ticks, 3 diffraction routes out to 32 blocks).\\n\\nCustom uses the values you set on the Performance tab.",
       "openingSize": "Opening Size",
-      "openingSize.description": "Makes the size of an opening matter. A doorway or small hole only passes the sound that lands on it, then spreads it out on the far side, so a narrow gap lets less through than a wide one. Long passages are left alone, because their walls guide sound along.\\n\\nRealism: ON. Without it a one-block hole passes as much as an open archway. Most realistic: ON.\\n\\nPerformance: a small extra check for each route that bends through an opening. Fastest: OFF."
+      "openingSize.description": "Makes the size of an opening matter. A doorway or small hole only passes the sound that lands on it, then spreads it out on the far side, so a narrow gap lets less through than a wide one. Long passages are left alone, because their walls guide sound along.\\n\\nRealism: ON. Without it a one-block hole passes as much as an open archway. Most realistic: ON.\\n\\nPerformance: a small extra check for each route that bends through an opening. Fastest: OFF.",
+      "soundDelay": "Speed of Sound",
+      "soundDelay.description": "Sound takes time to arrive: 343 blocks per second, so a sound 34 blocks away is heard a tenth of a second late. Each sound starts at an exact moment on the audio device's clock. That also lets two sources playing the same sound at the same instant reinforce and cancel each other depending on where you stand.\\n\\nRealism: ON. Most realistic: ON. Every processed sound also starts 0.03 seconds later than before, which is what makes the exact timing possible.\\n\\nPerformance: no effect. Needs an audio device that supports timed starts; where it does not, sounds start as before and the debug readout says so.",
+      "airAbsorptionStrength": "Air Absorption",
+      "airAbsorptionStrength.description": "Air soaks up high notes over distance, so far-off sounds are duller. 0 turns it off.\\n\\nRealism: 1.0 is real air at 20 degrees and 50 percent humidity. Over 64 blocks that takes about 7 dB off the very highest notes and almost nothing off the rest, so the effect is subtle at Minecraft distances. Higher values exaggerate it. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "doppler": "Doppler Shift",
+      "doppler.description": "Pitch rises as you and a sound approach each other and falls as you move apart, like a siren passing.\\n\\nRealism: ON. The shift is small on foot (about 1.5 percent at a sprint) and clear when flying with an elytra or falling. Most realistic: ON.\\n\\nPerformance: no effect.",
+      "dopplerStrength": "Doppler Strength",
+      "dopplerStrength.description": "How strong the pitch shift is. 0 turns it off.\\n\\nRealism: 1.0 is the real amount for the speed of sound in air. Most realistic: 1.0.\\n\\nPerformance: no effect."
     }
   }
 }

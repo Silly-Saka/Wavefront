@@ -12,6 +12,9 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - The per-sound filter can now cut bass as well as treble.
 - Blocked sounds now appear to come from the edge or opening they travelled through.
 - Voice chat uses the same occlusion and diffraction.
+- Speed-of-sound delay with sample-exact start times, which also gives interference between identical sounds started together.
+- Air absorption over distance.
+- Doppler shift for moving listeners and moving sound sources.
 - Own settings screen: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Every setting is in these rows.
 - Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
 - Defaults are the most realistic values.

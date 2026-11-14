@@ -126,6 +126,7 @@ public abstract class SoundSystemMixin {
         if(client.level == null || client.player == null) {
             return;
         } // some error occurred
+        wavefront.mc.Doppler.tick(client.player.getEyePosition(), paused);
         RaycastingHelper.castBouncingRaysAndDetectSFX(client.level, client.player);
         RaycastingHelper.playQueuedObjects();
 
@@ -276,6 +277,8 @@ public abstract class SoundSystemMixin {
     private void onAudioEngineStart(CallbackInfo ci) {
         fxHandler.efxInitialized = false;
         fxHandler.initializeReverb();
+        wavefront.mc.SoundClock.reset();
+        wavefront.mc.Doppler.reset();
     }
 
     private boolean isSoundBlacklisted(String soundName) {

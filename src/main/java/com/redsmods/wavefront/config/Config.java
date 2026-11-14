@@ -185,6 +185,29 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.diffractionStrength.description")
     @SerialEntry public float diffractionStrength = 1.0f;
 
+    // ===== Distance and motion =====
+    @AutoGen(category = "physics", group = "distance")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.soundDelay.description")
+    @SerialEntry public boolean soundDelay = true;
+
+    @AutoGen(category = "physics", group = "distance")
+    @FloatSlider(min = 0, max = 10, step = 0.25f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.airAbsorptionStrength.description")
+    @SerialEntry public float airAbsorptionStrength = 1.0f;
+
+    @AutoGen(category = "physics", group = "distance")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.doppler.description")
+    @SerialEntry public boolean doppler = true;
+
+    @AutoGen(category = "physics", group = "distance")
+    @FloatSlider(min = 0, max = 3, step = 0.1f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.dopplerStrength.description")
+    @SerialEntry public float dopplerStrength = 1.0f;
+
     // ===== Voice Chat tab =====
     @AutoGen(category = "voicechat", group = "main")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
