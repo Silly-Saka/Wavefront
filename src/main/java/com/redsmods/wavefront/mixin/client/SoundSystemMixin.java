@@ -130,6 +130,8 @@ public abstract class SoundSystemMixin {
         wavefront.mc.Doppler.tick(client.player.getEyePosition(), paused, speedOfSound);
         wavefront.mc.ListenerState.tick(speedOfSound);
         wavefront.mc.BassLayer.tick(client.level, client.player.getEyePosition());
+        wavefront.mc.TextureOpenness.tick();
+        wavefront.mc.Visualiser.tick(client.level, client.player.getEyePosition());
         RaycastingHelper.castBouncingRaysAndDetectSFX(client.level, client.player);
         RaycastingHelper.playQueuedObjects();
 

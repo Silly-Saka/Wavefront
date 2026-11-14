@@ -239,7 +239,7 @@ public final class BassLayer {
     private static Cell classify(Level level, AcousticDatabase db, BlockPos pos, BlockState state) {
         if (!state.getFluidState().isEmpty()) return new Cell(true, FLUID_SURFACE, null);
         AcousticSolver.BlockInfo info = AcousticSolver.info(db, state);
-        if (info.ignored()) return Cell.AIR;
+        if (info.ignored() || (info.partlyOpen() && info.fill <= 0.5)) return Cell.AIR; // grates and meshes
         VoxelShape shape = state.getCollisionShape(level, pos);
         if (shape.isEmpty()) return Cell.AIR; // plants, torches, open fence gates
         if (info.material.realLoss1m[1] < TRANSPARENT_DB) return Cell.AIR; // leaves

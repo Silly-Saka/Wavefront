@@ -91,7 +91,7 @@ public class WavefrontScreen extends Screen {
         Set<String> placed = new HashSet<>();
         List<Topic> out = new ArrayList<>();
 
-        out.add(topic(placed, "walls", "wallStrength", List.of("wavePhysics"),
+        out.add(topic(placed, "walls", "wallStrength", List.of("wavePhysics", "autoOpenness"),
                 List.of(new Section("walls.classic", UI + "section.classic", List.of("permeation", "useExplosionResistance",
                         "permeationAbsorption", "maxBlocksPermeated", "permeationStepSize", "attenuationType",
                         "shortcutDirectionality", "barrierAsAir")))));
@@ -104,6 +104,8 @@ public class WavefrontScreen extends Screen {
         out.add(topic(placed, "water", "water", List.of("waterSurfaceStrength", "submergedHearing", "submergedDirection"), List.of()));
 
         out.add(topic(placed, "bass", "waveBass", List.of("fullBass", "waveStrength", "waveDetail", "waveRange"), List.of()));
+
+        out.add(topic(placed, "structure", "structureBorne", List.of("structureStrength", "structureRange"), List.of()));
 
         // Reverb: the main values, then one group per set of fine-tuning values.
         List<String> reverbMain = List.of("raysCast", "raysBounced", "maxRayLength", "bounceAbsorptionMultiplier");
@@ -125,7 +127,7 @@ public class WavefrontScreen extends Screen {
 
         // General: whatever belongs to no single topic, plus anything not placed above.
         List<String> general = new ArrayList<>(List.of("tickRate", "procRange", "maxSounds", "volumeMultiplier", "disableFXOnUI"));
-        List<String> tools = List.of("debug", "soundBlacklist", "soundTickBlacklist");
+        List<String> tools = List.of("debug", "showSoundPaths", "showBassField", "soundBlacklist", "soundTickBlacklist");
         placed.addAll(general);
         placed.addAll(tools);
         for (String name : settings.keySet()) {

@@ -490,10 +490,133 @@ public class SelfTest {
         check("no arrivals means silence", silent.gain == 0, "");
 
         waveChecks();
+        structureChecks(db);
+        extraChecks();
 
         System.out.println();
         System.out.println(failures == 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED");
         if (failures > 0) System.exit(1);
+    }
+
+    // ---------------- sound through the blocks themselves
+
+    /** A floor at y = 10 (one block thick, as wide as you like) with an optional layer on top at y = 11. */
+    static final class FloorWorld implements StructureBorne.World {
+        AcousticMaterial floor, layer;
+        boolean sealed = false;
+        /** Blocks of the floor replaced by something else: x from, x to, material. */
+        int stripFrom = 1, stripTo = 0;
+        AcousticMaterial strip;
+
+        @Override
+        public AcousticMaterial solidAt(int x, int y, int z) {
+            if (Math.abs(x) > 40 || Math.abs(z) > 40) return null;
+            if (y == 10) return x >= stripFrom && x <= stripTo ? strip : floor;
+            if (y == 11) return layer;
+            return null;
+        }
+
+        @Override
+        public boolean segmentClear(double ax, double ay, double az, double bx, double by, double bz) {
+            if (sealed) return false;
+            double top = layer == null ? 11 : 12;
+            return (ay < 10 && by < 10) || (ay > top && by > top);
+        }
+    }
+
+    static void structureChecks(AcousticDatabase db) {
+        AcousticMaterial stone = db.material("dense_stone"), planks = db.material("wood_planks"), wool = db.material("wool"), sand = db.material("sand");
+
+        check("steps, pistons and explosions shake the blocks", StructureBorne.coupling("minecraft:block.stone.step") == 1.0
+                && StructureBorne.coupling("minecraft:block.piston.extend") == 1.0 && StructureBorne.coupling("minecraft:entity.generic.explode") == 1.0
+                && StructureBorne.coupling("minecraft:entity.player.big_fall") == 1.0 && StructureBorne.coupling("minecraft:block.wood.break") == 1.0, "");
+        check("voices, animals and music do not", StructureBorne.coupling("minecraft:entity.cow.ambient") == 0 && StructureBorne.coupling("minecraft:music.game") == 0
+                && StructureBorne.coupling("minecraft:entity.villager.yes") == 0, "");
+        check("a door knocks less than a step, a note block less again", StructureBorne.coupling("minecraft:block.wooden_door.close") == 0.7
+                && StructureBorne.coupling("minecraft:block.note_block.bass") == 0.1, "");
+
+        check("shaking crosses stone to stone without loss", StructureBorne.crossingLossDb(stone, stone) == 0, "");
+        check("stone to planks loses a few dB", StructureBorne.crossingLossDb(stone, planks) > 1.5 && StructureBorne.crossingLossDb(stone, planks) < 9,
+                String.format("(%.1f dB)", StructureBorne.crossingLossDb(stone, planks)));
+        check("stone to wool loses nearly everything", StructureBorne.crossingLossDb(stone, wool) > 25, String.format("(%.1f dB)", StructureBorne.crossingLossDb(stone, wool)));
+        check("crossing loses the same in either direction", StructureBorne.crossingLossDb(stone, sand) == StructureBorne.crossingLossDb(sand, stone), "");
+        check("stone soaks up almost nothing, sand soaks up treble", StructureBorne.dampingDb(stone, 3) < 0.05
+                && StructureBorne.dampingDb(sand, 0) < 1.0 && StructureBorne.dampingDb(sand, 4) > 8, String.format("(sand %.1f dB a block at 63 Hz, %.1f at 1 kHz)", StructureBorne.dampingDb(sand, 0), StructureBorne.dampingDb(sand, 4)));
+
+        // someone walking on the floor above
+        FloorWorld w = new FloorWorld();
+        w.floor = stone;
+        double[] step = {5.5, 11.0, 5.5}, below = {5.5, 8.6, 5.5};
+        StructureBorne.Path thud = StructureBorne.find(w, step, below, 1.0, 3000, 24);
+        check("a step on a stone floor is heard in the room below", thud != null && thud.cells.length == 1 && thud.from[1] < 10, "");
+        near("as a thud 12 dB down at 63 Hz", db(thud.energy[0]), -StructureBorne.BASE_DB, 0.01);
+        check("which is nearly all bass", thud.energy[0] > thud.energy[2] && thud.energy[2] > 10 * thud.energy[4] && thud.energy[4] > 10 * thud.energy[6], "");
+        check("and arrives through the air from the ceiling", Math.abs(thud.airLength - 1.35) < 0.01 && thud.seconds > thud.airLength / 343.0, "");
+
+        w.floor = planks;
+        StructureBorne.Path onPlanks = StructureBorne.find(w, step, below, 1.0, 3000, 24);
+        check("a plank floor thuds louder than a stone one", db(onPlanks.energy[0]) > db(thud.energy[0]) + 4 && db(onPlanks.energy[0]) < db(thud.energy[0]) + 6.01,
+                String.format("(%.1f dB louder)", db(onPlanks.energy[0]) - db(thud.energy[0])));
+
+        w.floor = stone;
+        w.layer = wool;
+        StructureBorne.Path onWool = StructureBorne.find(w, new double[]{5.5, 12.0, 5.5}, below, 1.0, 3000, 24);
+        check("wool on the floor takes at least 25 dB off the thud", onWool != null && db(onWool.energy[0]) < db(thud.energy[0]) - 25,
+                String.format("(%.1f dB)", db(onWool.energy[0]) - db(thud.energy[0])));
+        w.layer = null;
+
+        check("a sound in mid air shakes nothing", StructureBorne.find(w, new double[]{5.5, 13.5, 5.5}, below, 1.0, 3000, 24) == null, "");
+        check("a sound that only moves air is left out", StructureBorne.find(w, step, below, 0.0, 3000, 24) == null, "");
+        near("a door's knock is 1.5 dB weaker than a step", db(StructureBorne.find(w, step, below, 0.7, 3000, 24).energy[0]), db(thud.energy[0]) - 1.55, 0.01);
+
+        w.sealed = true;
+        check("no surface in view of the listener means no thud", StructureBorne.find(w, step, below, 1.0, 3000, 24) == null, "");
+        w.sealed = false;
+
+        // a listener well off to the side: the shaking has to travel along the floor or the sound through the air
+        double[] aside = {25.5, 8.6, 5.5};
+        StructureBorne.Path along = StructureBorne.find(w, step, aside, 1.0, 6000, 24);
+        check("a listener 20 blocks along still gets it, over a longer way", along != null && along.solidLength + along.airLength > 19.9, "");
+
+        // sand let into the floor all round the step soaks the shaking up
+        w.stripFrom = -40;
+        w.stripTo = 40;
+        w.strip = sand;
+        StructureBorne.Path onSand = StructureBorne.find(w, step, below, 1.0, 3000, 24);
+        check("the same step on sand: no lightness bonus, and nothing to cross", onSand != null && Math.abs(db(onSand.energy[0]) - db(thud.energy[0])) < 0.01, "");
+        w.stripFrom = 6;
+        w.stripTo = 9;
+        w.sealed = false;
+        StructureBorne.Path pastSand = StructureBorne.find(new StructureBorne.World() {
+            @Override public AcousticMaterial solidAt(int x, int y, int z) { return w.solidAt(x, y, z); }
+            // only the floor beyond the sand is in view of the listener
+            @Override public boolean segmentClear(double ax, double ay, double az, double bx, double by, double bz) { return ax > 10 && ay < 10; }
+        }, step, new double[]{12.5, 8.6, 5.5}, 1.0, 6000, 24);
+        check("four blocks of sand in the way cost at least 15 dB, and more in the treble", pastSand != null && db(pastSand.energy[0]) < db(thud.energy[0]) - 15
+                && db(thud.energy[4]) - db(pastSand.energy[4]) > db(thud.energy[0]) - db(pastSand.energy[0]) + 10,
+                pastSand == null ? "" : String.format("(%.1f dB at 63 Hz, %.1f dB at 1 kHz)", db(pastSand.energy[0]) - db(thud.energy[0]), db(pastSand.energy[4]) - db(thud.energy[4])));
+    }
+
+    static void extraChecks() {
+        // ---- guessing how open an unknown block is from its texture
+        check("a texture under a fifth see-through means a solid block", AcousticDatabase.fillFromOpenTexture(0.0) == -1 && AcousticDatabase.fillFromOpenTexture(0.19) == -1, "");
+        near("a fifth see-through leaves two thirds solid", AcousticDatabase.fillFromOpenTexture(0.2), 0.66, 0.001);
+        near("half see-through or more is as open as it gets", AcousticDatabase.fillFromOpenTexture(0.5), 0.15, 0.001);
+        check("more holes never means more solid", AcousticDatabase.fillFromOpenTexture(0.9) == 0.15 && AcousticDatabase.fillFromOpenTexture(0.3) > AcousticDatabase.fillFromOpenTexture(0.4), "");
+        check("a texture that could not be read means a solid block", AcousticDatabase.fillFromOpenTexture(Double.NaN) == -1, "");
+
+        // ---- a thud through the blocks and the wave result add up
+        double[] ones = {1, 1, 1, 1, 1, 1, 1, 1};
+        List<Propagation.Arrival> clear = Propagation.list();
+        clear.add(Propagation.straight(new double[]{10, 0, 0}, 10, ones.clone()));
+        Propagation.Result inView = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, clear);
+        double[] leak = {1e-3, 1e-3, 1e-3, 1e-4, 1e-5, 1e-5, 1e-5, 1e-5};
+        double with = BassMix.mix(inView, leak, 10, 10, new double[]{0.37, 0.37}, null, new double[]{0.05, 0.03}, 1.0).bass[0];
+        double without = BassMix.mix(inView, leak, 10, 10, new double[]{0.37, 0.37}, null, null, 1.0).bass[0];
+        near("a thud through the blocks is added to what the wave carries", with - without, 0.05, 1e-9);
+        near("the bass field shows no change on open ground", BassMix.relative(BassMix.OPEN_GROUND.clone(), null), 1.0, 1e-9);
+        near("and measures against what is usual in an enclosed place", BassMix.relative(new double[]{50, 50}, new double[]{100, 100}), 0.5, 1e-9);
+        check("with nothing known the bass field shows nothing", Double.isNaN(BassMix.relative(new double[]{Double.NaN, Double.NaN}, null)), "");
     }
 
     // ---------------- the wave simulation of bass

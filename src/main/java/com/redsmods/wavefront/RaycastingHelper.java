@@ -469,7 +469,8 @@ public class RaycastingHelper {
                 : avgData.soundEntity.position;
 
         long deadline = roundDeadline;
-        AcousticSolver.Solved solved = AcousticSolver.solveShared(world, player, playerPos, sourcePos, deadline);
+        double coupling = wavefront.acoustics.StructureBorne.coupling(String.valueOf(originalSound.getIdentifier()));
+        AcousticSolver.Solved solved = AcousticSolver.solveShared(world, player, playerPos, sourcePos, deadline, coupling);
         // Out of time before the ways round were found. A sound already playing keeps what it has,
         // and is looked at again next round, so it never dips for a moment.
         if (solved.partial && originalSound instanceof RedPermeatedSoundInstance) return;
@@ -516,7 +517,7 @@ public class RaycastingHelper {
     /** Wavefront: the line shown by the debug setting for each new sound. */
     private static String physicsDebugLine(SoundInstance original, AcousticSolver.Solved solved) {
         return String.format("%s  gain %.2f  bass %.2f +%.2f%s  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(),
-                solved.gain, solved.gainLF, solved.bassSend, solved.waveBass ? String.format(" (wave, %.0f ms)", wavefront.mc.BassLayer.lastMillis) : "",
+                solved.gain, solved.gainLF, solved.bassSend, (solved.waveBass ? String.format(" (wave, %.0f ms)", wavefront.mc.BassLayer.lastMillis) : "") + (solved.throughBlocks ? " (through blocks)" : ""),
                 solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)");
     }
 

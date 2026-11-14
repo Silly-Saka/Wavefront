@@ -55,6 +55,18 @@ public final class BassMix {
      */
     public static Result mix(Propagation.Result combined, double[] straightEnergy, double straightDistance,
                              double apparentDistance, double[] wave, double[] usual, double strength) {
+        return mix(combined, straightEnergy, straightDistance, apparentDistance, wave, usual, null, strength);
+    }
+
+    /**
+     * As above, with sound that came through the blocks themselves.
+     *
+     * @param throughBlocks its bass energy per band, compared with an unblocked sound at the
+     *                      apparent distance; null if there is none. The wave simulation knows
+     *                      nothing of it, so it is added to the wave figures.
+     */
+    public static Result mix(Propagation.Result combined, double[] straightEnergy, double straightDistance,
+                             double apparentDistance, double[] wave, double[] usual, double[] throughBlocks, double strength) {
         double[] bass = {combined.bandEnergy[0], combined.bandEnergy[1], combined.bandEnergy[2]};
         boolean usedWave = false;
         if (wave != null && strength > 0) {
@@ -72,6 +84,7 @@ public final class BassMix {
                 // The simulation treats walls as sealed, so what leaks through them is added on top.
                 // With nothing much in the way, the straight path is already part of the wave result.
                 double total = (straightEnergy[b] >= WALL ? airborne : airborne + straightEnergy[b]) * scale;
+                if (throughBlocks != null && b < throughBlocks.length) total += throughBlocks[b];
                 total = Math.min(total, MAX_BOOST);
                 bass[b] = blend(bass[b], total, Math.min(1.0, strength));
                 usedWave = true;
@@ -82,6 +95,23 @@ public final class BassMix {
         if (gain < 1e-5) return new Result(1.0, bassLevel, bass, usedWave); // nothing but bass gets here
         double gainLF = Math.min(1.0, bassLevel / gain);
         return new Result(gainLF, Math.max(0.0, bassLevel - gain * gainLF), bass, usedWave);
+    }
+
+    /**
+     * How the bass at one spot compares with what is usual for the place, averaged over the
+     * simulated bands: 1 for no change. NaN where nothing is known. For drawing the bass field.
+     */
+    public static double relative(double[] wave, double[] usual) {
+        double sum = 0;
+        int known = 0;
+        for (int b = 0; b < Math.min(wave.length, OPEN_GROUND.length); b++) {
+            if (wave[b] != wave[b]) continue;
+            double reference = OPEN_GROUND[b];
+            if (usual != null && b < usual.length && usual[b] == usual[b]) reference = Math.max(reference, usual[b]);
+            sum += Math.min(MAX_BOOST, wave[b] / reference);
+            known++;
+        }
+        return known == 0 ? Double.NaN : sum / known;
     }
 
     /** Moves from one energy towards another by a share, measured in decibels. */

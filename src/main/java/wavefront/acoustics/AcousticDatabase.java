@@ -203,6 +203,17 @@ public final class AcousticDatabase {
         return f == null ? -1 : f;
     }
 
+    /**
+     * For a block the database does not know: turns the see-through share of its texture into
+     * how much of the block counts as solid. Under a fifth see-through, the block is solid
+     * (-1: use its shape). From there it opens up quickly, because a sheet that is a third
+     * holes already lets most sound through. A guess, not a measurement.
+     */
+    public static double fillFromOpenTexture(double openShare) {
+        if (!(openShare >= 0.2)) return -1;
+        return Math.max(0.15, Math.min(0.7, 1.0 - 1.7 * openShare));
+    }
+
     public boolean isNonPhysical(String blockId) {
         return nonPhysical.contains(blockId);
     }

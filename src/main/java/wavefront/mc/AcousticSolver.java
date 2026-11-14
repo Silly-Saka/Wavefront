@@ -37,6 +37,7 @@ import wavefront.acoustics.Medium;
 import wavefront.acoustics.Occlusion;
 import wavefront.acoustics.PathFinder;
 import wavefront.acoustics.Propagation;
+import wavefront.acoustics.StructureBorne;
 import wavefront.acoustics.VoxelLine;
 
 import java.io.InputStream;
@@ -95,6 +96,8 @@ public final class AcousticSolver {
         public float bassSend = 0f;
         /** True if the wave simulation supplied the bass for this result. */
         public boolean waveBass = false;
+        /** True if part of the sound came through the blocks themselves. */
+        public boolean throughBlocks = false;
     }
 
     private static final String DATABASE_RESOURCE = "/assets/wavefront/acoustics/acoustic_materials.json";
@@ -163,8 +166,15 @@ public final class AcousticSolver {
         }
     }
 
+    private static volatile boolean guessedOpenness = true;
+
     static BlockInfo info(AcousticDatabase db, BlockState state) {
         Block block = state.getBlock();
+        boolean guess = Config.getInstance().autoOpenness;
+        if (guess != guessedOpenness) { // the setting was changed: what was worked out with the old one no longer holds
+            guessedOpenness = guess;
+            blockInfo.clear();
+        }
         BlockInfo cached = blockInfo.get(block);
         if (cached != null) return cached;
 
@@ -173,6 +183,7 @@ public final class AcousticSolver {
         double fill = db.fillForBlock(id);
         if (db.isNonPhysical(id)) fill = 0;
 
+        boolean unknown = material == null;
         if (material == null) {
             // A block the database has never heard of (usually from another mod): try its tags,
             // then guess from the sound it makes when you walk on it.
@@ -185,6 +196,12 @@ public final class AcousticSolver {
             }
             if (material == null) material = db.material(materialFromSoundType(state.getSoundType()));
             if (material == null) material = db.fallbackMaterial();
+        }
+        if (unknown && guess && fill < 0 && !material.name.equals("glass")) {
+            // Guess how open it is from how much of its texture is see-through. Glass is see-through and shut.
+            Double open = TextureOpenness.of(block);
+            if (open == null) return new BlockInfo(material, fill); // not looked at yet: go by its shape this once
+            fill = AcousticDatabase.fillFromOpenTexture(open);
         }
         BlockInfo result = new BlockInfo(material, fill);
         blockInfo.put(block, result);
@@ -214,7 +231,7 @@ public final class AcousticSolver {
     }
 
     /** A recent result, kept briefly so that sounds from the same spot need not all be worked out separately. */
-    private record Recent(Solved result, Vec3 source, Vec3 listener, long at) {}
+    private record Recent(Solved result, Vec3 source, Vec3 listener, double coupling, long at) {}
 
     private static final Map<Long, Recent> recent = new ConcurrentHashMap<>();
     private static final long RECENT_NANOS = 1_000_000_000L;
@@ -229,6 +246,11 @@ public final class AcousticSolver {
      * @param deadline a moment (System.nanoTime) after which searching stops, or 0 for no limit
      */
     public static Solved solveShared(Level level, Player player, Vec3 listener, Vec3 source, long deadline) {
+        return solveShared(level, player, listener, source, deadline, 0.0);
+    }
+
+    /** @param coupling how much of the sound goes into the block it touches (see {@link StructureBorne#coupling}) */
+    public static Solved solveShared(Level level, Player player, Vec3 listener, Vec3 source, long deadline, double coupling) {
         long key = BlockPos.asLong((int) Math.floor(source.x * 4), (int) Math.floor(source.y * 4), (int) Math.floor(source.z * 4));
         if (recent.size() > 512) {
             long cutoff = System.nanoTime() - 5 * RECENT_NANOS;
@@ -236,11 +258,11 @@ public final class AcousticSolver {
         }
         return recent.compute(key, (k, old) -> {
             long now = System.nanoTime();
-            if (old != null && !old.result().partial && now - old.at() < RECENT_NANOS
+            if (old != null && !old.result().partial && now - old.at() < RECENT_NANOS && old.coupling() == coupling
                     && old.source().distanceToSqr(source) < 0.1 && old.listener().distanceToSqr(listener) < RECENT_LISTENER_MOVE_SQ) {
                 return old;
             }
-            return new Recent(solve(level, player, listener, source, deadline), source, listener, now);
+            return new Recent(solve(level, player, listener, source, deadline, coupling), source, listener, coupling, now);
         }).result();
     }
 
@@ -249,6 +271,11 @@ public final class AcousticSolver {
      *                 stops, or 0 for no limit. A result cut short this way is marked partial.
      */
     public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source, long deadline) {
+        return solve(level, player, listener, source, deadline, 0.0);
+    }
+
+    /** @param coupling how much of the sound goes into the block it touches; 0 for sounds that only move air */
+    public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source, long deadline, double coupling) {
         float straight = (float) listener.distanceTo(source);
         AcousticDatabase db = database();
         if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, 1f, straight, straight / 343f);
@@ -271,7 +298,11 @@ public final class AcousticSolver {
         Propagation.Arrival straightArrival = Propagation.straight(src, straight, throughWalls);
         if (wet) applyMedia(level, db, cfg, straightArrival, src, lis);
         arrivals.add(straightArrival);
-        if (!direct.blocked()) return finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet); // in plain view
+        if (!direct.blocked()) { // in plain view
+            if (Visualiser.wantsPaths()) Visualiser.record(source, listener, false, null, null);
+            return finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet, null);
+        }
+        List<double[][]> drawn = Visualiser.wantsPaths() ? new java.util.ArrayList<>() : null;
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
@@ -288,6 +319,7 @@ public final class AcousticSolver {
             partial = finder.timedOut();
             for (PathFinder.Route route : routes) {
                 if (route.bends == 0) continue; // a clear straight line is already covered above
+                if (drawn != null) drawn.add(route.points);
                 // A doorway or small hole can only pass the sound that lands on it.
                 Aperture.Opening opening = cfg.openingSize ? Aperture.tightest(view, route) : null;
                 Propagation.Arrival arrival = Propagation.diffracted(route, straight, opening);
@@ -301,14 +333,32 @@ public final class AcousticSolver {
             }
         }
 
-        Solved result = finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet);
+        // Sound through the blocks themselves: a step, a piston or a blast behind a wall or floor.
+        Propagation.Arrival throughBlocks = null;
+        StructureBorne.Path solidPath = null;
+        if (cfg.structureBorne && coupling > 0 && cfg.structureStrength > 0 && !wet
+                && !(deadline != 0L && System.nanoTime() > deadline)) {
+            int range = Math.max(4, Math.min(64, cfg.structureRange));
+            WorldView solids = new WorldView(level, player, db, sourceCell);
+            solidPath = StructureBorne.find(solids, src, lis, coupling * cfg.structureStrength, Math.min(20000, range * range * 6), range);
+            if (solidPath != null) {
+                throughBlocks = new Propagation.Arrival(solidPath.energy, solidPath.solidLength + solidPath.airLength, solidPath.from);
+                throughBlocks.seconds = solidPath.seconds;
+                throughBlocks.airLength = solidPath.airLength;
+                arrivals.add(throughBlocks);
+            }
+        }
+        if (drawn != null) Visualiser.record(source, listener, true, drawn, solidPath);
+
+        Solved result = finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet, throughBlocks);
         result.partial = partial;
+        result.throughBlocks = throughBlocks != null;
         return result;
     }
 
     /** Lets the air take its share from every arrival, then merges them into one result. */
     private static Solved finish(Level level, Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals,
-                                 Config cfg, Medium listenerIn, boolean wet) {
+                                 Config cfg, Medium listenerIn, boolean wet, Propagation.Arrival throughBlocks) {
         for (Propagation.Arrival arrival : arrivals) {
             AirAbsorption.apply(arrival.energy, arrival.airLength, cfg.airAbsorptionStrength);
         }
@@ -331,7 +381,12 @@ public final class AcousticSolver {
             }
         }
         Propagation.Arrival straight = arrivals.get(0);
-        BassMix.Result bass = BassMix.mix(r, straight.energy, straight.length, pathLength, wave, usual, cfg.waveStrength);
+        double[] solidBass = null;
+        if (throughBlocks != null) {
+            double scale = (pathLength / throughBlocks.length) * (pathLength / throughBlocks.length);
+            solidBass = new double[]{throughBlocks.energy[0] * scale, throughBlocks.energy[1] * scale};
+        }
+        BassMix.Result bass = BassMix.mix(r, straight.energy, straight.length, pathLength, wave, usual, solidBass, cfg.waveStrength);
         Solved solved = new Solved(apparent, (float) r.gain, (float) bass.gainLF, (float) gainHF, pathLength, (float) r.seconds);
         if (cfg.fullBass) solved.bassSend = (float) bass.send;
         solved.waveBass = bass.usedWave;
@@ -630,7 +685,7 @@ public final class AcousticSolver {
     // ------------------------------------------------------------------ world view for path finding
 
     /** Lets the path finder look at the Minecraft world. One instance per solve; it caches what it reads. */
-    private static final class WorldView implements PathFinder.World {
+    private static final class WorldView implements PathFinder.World, StructureBorne.World {
         private static final byte OPEN_EMPTY = 0, OPEN_PARTIAL = 1, CLOSED = 2;
 
         private final Level level;
@@ -666,6 +721,17 @@ public final class AcousticSolver {
             }
             cells.put(key, result);
             return result;
+        }
+
+        /** For sound through the blocks: what this cell is made of, if it is solid enough to carry shaking. */
+        @Override
+        public AcousticMaterial solidAt(int x, int y, int z) {
+            scratch.set(x, y, z);
+            BlockState state = level.getBlockState(scratch);
+            if (state.isAir() || !state.getFluidState().isEmpty()) return null;
+            BlockInfo info = info(db, state);
+            if (info.ignored() || state.getCollisionShape(level, scratch).isEmpty()) return null;
+            return info.material;
         }
 
         /** Blocks sound walks straight through when looking for a route: ignored and mostly-open ones. */

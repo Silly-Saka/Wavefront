@@ -61,6 +61,11 @@
           "summary": "The lowest notes follow real waves through the blocks round you.",
           "summary_off": "Bass uses the wall and diffraction figures."
         },
+        "structure": {
+          "title": "Through blocks",
+          "summary": "Steps, pistons and blasts are heard as thuds through floors and walls.",
+          "summary_off": "Blows are only heard through the air."
+        },
         "reverb": {
           "title": "Reverb",
           "summary": "Echo that matches the space you are in.",
@@ -131,7 +136,8 @@
           "bending": "Diffraction",
           "distance": "Distance and Motion",
           "water": "Water and Lava",
-          "bass": "Bass"
+          "bass": "Bass",
+          "structure": "Sound Through Blocks"
         },
         "voicechat": "Voice Chat",
         "voicechat.group": {
@@ -142,7 +148,8 @@
           "rays": "Measuring The Space",
           "updates": "Updating Sounds",
           "bending": "Diffraction Search",
-          "bass": "Bass Waves"
+          "bass": "Bass Waves",
+          "structure": "Sound Through Blocks"
         },
         "reverb_tuning": "Reverb Tuning",
         "reverb_tuning.group": {
@@ -364,6 +371,18 @@
       "waveDetail.description": "How finely the space is cut up for the wave simulation. 1: one cell per block, lowest notes only (around 63 Hz). 2: adds notes around 125 Hz on half-block cells, which also follow slabs and stairs. 3: everything on half-block cells.\\n\\nRealism: finer cells follow the shape of the world more closely and cover more of the bass. Most realistic: 3, though it is hard to tell from 2. Realism uses 2; Overkill uses 3.\\n\\nPerformance: each step up costs far more. 2 is about 10 times the work of 1, and 3 is about twice the work of 2. Fastest: 1.",
       "waveRange": "Bass Wave Range",
       "waveRange.description": "How far from you the wave simulation reaches sideways, in blocks. It reaches two thirds as far up and down. Sounds outside it use the wall and diffraction figures for their bass.\\n\\nRealism: bigger covers more sounds. Most sounds can only be heard within 16 blocks anyway; note blocks and explosions carry further. Most realistic: 32. Realism uses 24.\\n\\nPerformance: the work grows quickly with size. 32 costs about three times as much as 24 and uses more memory. Fastest: 12.",
+      "structureBorne": "Sound Through Blocks",
+      "structureBorne.description": "Lets blows travel through the blocks themselves. A footstep, a piston, a door, a block being broken or an explosion shakes the block it touches. The shaking spreads through the solid blocks joined to it and comes out of the surfaces near you as a dull thud. This is how you hear someone walking on the floor above. Stone and planks carry it well, sand and dirt soak it up, and wool or carpet under the blow stops nearly all of it. Voices, animals and music are not affected.\\n\\nRealism: ON. Most realistic: ON. How well each material carries the shaking comes from the block database. How loud a blow is to begin with is an estimate. A thud is nearly all bass, so it needs Full Bass (in the Bass row) to be heard properly.\\n\\nPerformance: only worked out for blows you cannot see, with a small search each. Fastest: OFF.",
+      "structureStrength": "Thud Strength",
+      "structureStrength.description": "How loud sound through blocks is. 0 turns it off. 2 makes it 3 dB louder.\\n\\nRealism: 1.0 is the mod's estimate for a hard blow on a bare floor: about 12 dB quieter than hearing the same blow through open air. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "structureRange": "Thud Range",
+      "structureRange.description": "How far the shaking is followed through the blocks, and how far the surface it comes out of may be from you, in blocks.\\n\\nRealism: further finds thuds from further away. Most realistic: 48. Realism uses 24.\\n\\nPerformance: the search looks at up to range times range times 6 blocks for each blow. Fastest: 8.",
+      "autoOpenness": "Guess Openness From Textures",
+      "autoOpenness.description": "For blocks the mod's database does not know, which means blocks from other mods, looks at the block's texture. If a fifth or more of it is see-through, like a grate or a mesh, the block is treated as partly open and lets sound through. Blocks that sound like glass when walked on are left solid.\\n\\nRealism: ON. Most realistic: ON, though it is a guess: a see-through picture does not always mean a real hole. Turn it off if a modded block lets too much through.\\n\\nPerformance: each unknown block is looked at once. No measurable cost.",
+      "showSoundPaths": "Show Sound Paths",
+      "showSoundPaths.description": "Draws how each sound reached you, for a second and a half after it plays. Green line: straight to you with nothing in the way. Red line: the straight line is blocked. Yellow lines: the routes it bent round. Orange boxes: blocks it travelled through as a thud. The lines show through walls.\\n\\nRealism: no effect. It is a tool for seeing what the mod is doing.\\n\\nPerformance: a few lines per sound. Fastest: OFF.",
+      "showBassField": "Show Bass Field",
+      "showBassField.description": "Draws a carpet of dots round you at chest height showing the Bass Waves result: how much bass a sound at each spot would have. Blue is less, white is unchanged, red is more. Needs Bass Waves ON and a sound to have played in the last few seconds.\\n\\nRealism: no effect.\\n\\nPerformance: about 440 dots, redrawn every tick. Fastest: OFF.",
       "searchTimeMs": "Search Time",
       "searchTimeMs.description": "How many thousandths of a second each round of calculations may spend looking for ways round obstacles. When it runs out, sounds already playing keep their last values until the next round, and a new sound starts with only its through-the-wall part and catches up a moment later. The game itself never waits for these calculations.\\n\\nRealism: more time means fewer sounds have to wait a round. Most realistic: 50, about one game tick; Overkill uses 250.\\n\\nPerformance: this is a ceiling on how late a new sound can start when many blocked sounds play at once. Fastest: 10."
     }

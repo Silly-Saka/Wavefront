@@ -42,7 +42,8 @@ public class Config {
 
     /** Options that are the player's own and never change with the Quality preset. */
     private static final java.util.Set<String> PERSONAL = java.util.Set.of("qualityPreset", "debug", "reverbTuning",
-            "soundBlacklist", "soundTickBlacklist", "volumeMultiplier", "disableFXOnUI", "voicechatReverbSelf");
+            "soundBlacklist", "soundTickBlacklist", "volumeMultiplier", "disableFXOnUI", "voicechatReverbSelf",
+            "showSoundPaths", "showBassField");
 
     private static volatile Config effective;
 
@@ -87,6 +88,7 @@ public class Config {
                 c.diffractionSearchBudget = 3000;
                 c.searchTimeMs = 10;
                 c.waveBass = false;
+                c.structureRange = 12;
                 c.echoCount = 1;
                 c.echoRange = 48;
                 c.echoContinuous = false;
@@ -101,6 +103,7 @@ public class Config {
                 c.diffractionSearchBudget = 6000;
                 c.searchTimeMs = 25;
                 c.waveDetail = 1;
+                c.structureRange = 16;
             }
             case OVERKILL -> {
                 // Every accuracy setting at its limit, whether or not the difference can be heard.
@@ -116,6 +119,7 @@ public class Config {
                 c.searchTimeMs = 250;
                 c.waveDetail = 3;
                 c.waveRange = 32;
+                c.structureRange = 48;
                 c.echoCount = 3;
                 c.echoRange = 128;
                 c.echoContinuous = true;
@@ -324,6 +328,41 @@ public class Config {
     @FormatTranslation("wavefront.config.unit.blocks")
     @CustomDescription("yacl3.config.wavefront:config.waveRange.description")
     @SerialEntry public int waveRange = 24;
+
+    // ===== Sound through blocks =====
+    @AutoGen(category = "physics", group = "structure")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.structureBorne.description")
+    @SerialEntry public boolean structureBorne = true;
+
+    @AutoGen(category = "physics", group = "structure")
+    @FloatSlider(min = 0, max = 2, step = 0.05f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.structureStrength.description")
+    @SerialEntry public float structureStrength = 1.0f;
+
+    @AutoGen(category = "performance", group = "structure")
+    @IntSlider(min = 8, max = 48, step = 4)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.structureRange.description")
+    @SerialEntry public int structureRange = 24;
+
+    // ===== Blocks from other mods =====
+    @AutoGen(category = "physics", group = "walls")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.autoOpenness.description")
+    @SerialEntry public boolean autoOpenness = true;
+
+    // ===== Seeing what the mod is doing =====
+    @AutoGen(category = "quick", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.showSoundPaths.description")
+    @SerialEntry public boolean showSoundPaths = false;
+
+    @AutoGen(category = "quick", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.showBassField.description")
+    @SerialEntry public boolean showBassField = false;
 
     // ===== Voice Chat tab =====
     @AutoGen(category = "voicechat", group = "main")

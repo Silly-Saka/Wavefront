@@ -18,14 +18,17 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Water and lava.** Sound travels about four times faster under water, loses about 29 dB each time it crosses the surface (36 dB for lava), and loses treble to a submerged listener, who can also barely tell left from right. Doppler shift uses the speed of sound where the listener is.
 - **Bass waves.** The lowest notes (two bands, around 63 and 125 Hz) are worked out by stepping a real pressure wave through the blocks round the listener, on half-block cells. Doorways, walls, side passages and the walls and corners of rooms shape the bass the way they do in air, with no formula for any of it. Runs on background threads; one run answers for every sound nearby.
 - **Full bass.** Bass can be louder than the rest of a sound, through a second effect channel. Behind a wall you hear mostly thump.
+- **Sound through blocks.** Steps, pistons, doors, blocks being broken and explosions shake the block they touch. The shaking is followed through connected solid blocks, losing what each material soaks up and what is lost crossing from one material to another (both from the database), and comes out of a surface in view of the listener as a dull thud.
+- **Blocks from other mods.** A block the database does not know gets a material from its tags or its step sound, and counts as partly open if a fifth or more of its texture is see-through.
+- **Seeing it.** Two switches under General, Tools: Show Sound Paths draws how each sound reached you, Show Bass Field draws the wave result as coloured dots.
 - **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
-Settings open from Mod Menu: a Quality switch and expandable rows for Walls, Diffraction, Distance and motion, Water and lava, Bass, Reverb, Voice chat and General. Open the **Walls** row and turn **Sound Physics** off to get the original Sound Physics Perfected behaviour back.
+Settings open from Mod Menu: a Quality switch and expandable rows for Walls, Diffraction, Distance and motion, Water and lava, Bass, Through blocks, Reverb, Voice chat and General. Open the **Walls** row and turn **Sound Physics** off to get the original Sound Physics Perfected behaviour back.
 
 ## What is planned
 
-Structure-borne sound (footsteps and machines heard through the floor), a way to see the sound paths, and the wave simulation extended upwards if it proves fast enough.
+The real slant-angle behaviour at the water surface, the wave simulation extended upwards if it proves fast enough, and a first release on Modrinth once the features have been tested in the game.
 
 ## Known limits
 
@@ -33,6 +36,8 @@ Structure-borne sound (footsteps and machines heard through the floor), a way to
 - Bass waves cover sounds in air within 24 blocks (32 on Overkill) and stop at about 180 Hz. Above that, and further away or under water, bass comes from the wall and diffraction figures. Walls are sealed in the simulation; what leaks through them is added from the wall figures. Only the first 50 ms after a sound arrives is counted, the rest being left to the reverb. The result lags a moving listener by up to a second.
 - Bass is compared with what is usual at the same distance in the place the listener is in, and never with less than open flat ground (one fixed figure, 5.7 dB above open air). So sounds in the open are unchanged, and a tunnel or small room does not make bass boom. In real life enclosed spaces make all of a sound louder; the mod leaves that to the reverb and does not raise the direct sound, at any pitch. Extra bass is capped at 6 dB.
 - A grid of cubes carries a wave slightly differently along its rows than across its diagonals. This is corrected for sound that travels straight; for sound that has bent round something an error of 1 to 2 dB remains at the top of each band.
+- Sound through blocks: how loud a blow is to begin with (12 dB under the same blow heard through open air, nearly all of it below 250 Hz) and the half a decibel lost per block are estimates, not researched figures. Which sounds count as blows is decided from the sound's name. Only blows out of view are worked out, and the thud needs Full Bass to be heard properly.
+- Guessing openness from a texture is a guess: a see-through picture is not always a hole. It can be switched off.
 - The water surface costs the same whatever angle sound meets it at. Real water lets less through at a slant.
 - A sound in plain view through an opening is treated as unobstructed; the opening's size only affects sounds that have to bend to reach you.
 - Defaults aim for realism: Wall Strength 1.0 and the Realism quality preset. Walls are strong (one stone block takes off about 35 dB), and the preset's performance cost has not been measured. The Balanced and Performance presets are lighter.
@@ -51,7 +56,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 191 checks: database values, thickness rules, the diffraction formula against hand calculations, route finding in small test worlds (free-standing wall, doorway, balcony, sealed room), and the wave simulation against open air, hard ground, walls, doorways, doors and panes.
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 221 checks: database values, thickness rules, the diffraction formula against hand calculations, route finding in small test worlds (free-standing wall, doorway, balcony, sealed room), the wave simulation against open air, hard ground, walls, doorways, doors and panes, and sound through blocks across floors of stone, planks, wool and sand.
 
 ## Editing the block database
 

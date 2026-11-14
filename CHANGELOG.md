@@ -17,6 +17,9 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Doppler shift for moving listeners and moving sound sources.
 - Distinct echoes off large flat surfaces, as delayed copies placed in the surface's direction. Music and looping sounds echo too.
 - Water and lava: faster travel, a loss at each surface crossing, duller and less directional hearing when submerged, and Doppler scaled to the listener's medium.
+- Sound through blocks: steps, pistons, doors, block breaking and explosions are heard as thuds through floors and walls. Settings: Sound Through Blocks, Thud Strength, Thud Range.
+- Blocks from other mods count as partly open when a fifth or more of their texture is see-through (Guess Openness From Textures).
+- Show Sound Paths and Show Bass Field draw what the mod worked out, in the world.
 - Bass waves: the lowest notes (around 63 and 125 Hz) come from a wave simulation of the blocks round the listener, run on background threads. Settings: Bass Waves, Bass Wave Strength, Bass Wave Detail, Bass Wave Range.
 - Full Bass: bass can be louder than the rest of a sound, through a second effect channel. Sounds behind walls and round corners keep their thump. Applies to voice chat too.
 - The game no longer waits for sound calculations: they run on worker threads with a time limit per round (Search Time). Sounds from the same spot share one calculation, and tightening a route is capped at 400 line checks.
