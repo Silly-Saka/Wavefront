@@ -85,6 +85,8 @@ public class Config {
                 c.diffractionRoutes = 1;
                 c.diffractionRange = 24;
                 c.diffractionSearchBudget = 3000;
+                c.echoCount = 1;
+                c.echoRange = 48;
             }
             case BALANCED -> {
                 c.raysCast = 200;
@@ -207,6 +209,28 @@ public class Config {
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.dopplerStrength.description")
     @SerialEntry public float dopplerStrength = 1.0f;
+
+    @AutoGen(category = "physics", group = "distance")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.echoes.description")
+    @SerialEntry public boolean echoes = true;
+
+    @AutoGen(category = "physics", group = "distance")
+    @FloatSlider(min = 0, max = 3, step = 0.1f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.echoStrength.description")
+    @SerialEntry public float echoStrength = 1.0f;
+
+    @AutoGen(category = "physics", group = "distance")
+    @IntSlider(min = 1, max = 3, step = 1)
+    @CustomDescription("yacl3.config.wavefront:config.echoCount.description")
+    @SerialEntry public int echoCount = 2;
+
+    @AutoGen(category = "physics", group = "distance")
+    @IntSlider(min = 16, max = 128, step = 8)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.echoRange.description")
+    @SerialEntry public int echoRange = 96;
 
     // ===== Voice Chat tab =====
     @AutoGen(category = "voicechat", group = "main")

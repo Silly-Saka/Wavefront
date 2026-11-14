@@ -317,7 +317,15 @@
       "doppler": "Doppler Shift",
       "doppler.description": "Pitch rises as you and a sound approach each other and falls as you move apart, like a siren passing.\\n\\nRealism: ON. The shift is small on foot (about 1.5 percent at a sprint) and clear when flying with an elytra or falling. Most realistic: ON.\\n\\nPerformance: no effect.",
       "dopplerStrength": "Doppler Strength",
-      "dopplerStrength.description": "How strong the pitch shift is. 0 turns it off.\\n\\nRealism: 1.0 is the real amount for the speed of sound in air. Most realistic: 1.0.\\n\\nPerformance: no effect."
+      "dopplerStrength.description": "How strong the pitch shift is. 0 turns it off.\\n\\nRealism: 1.0 is the real amount for the speed of sound in air. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "echoes": "Distinct Echoes",
+      "echoes.description": "A clear repeat of a sound off a large flat surface, such as a cliff face or the far wall of a big cavern. The surface must be at least 5 blocks across and far enough away that the repeat arrives 0.05 seconds or more after the sound; closer than that it blends into the reverb. Needs Speed of Sound to be ON. Music and looping sounds do not get echoes.\\n\\nRealism: ON. Most realistic: ON.\\n\\nPerformance: each echo is an extra copy of the sound, and each new sound checks six directions for a surface. Fastest: OFF.",
+      "echoStrength": "Echo Strength",
+      "echoStrength.description": "How loud echoes are. 0 silences them.\\n\\nRealism: 1.0 is the real amount: an echo is quieter than the sound in proportion to how much further it travelled, less what the surface absorbs. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "echoCount": "Echoes Per Sound",
+      "echoCount.description": "The most echoes one sound can have. The strongest are kept.\\n\\nRealism: in a canyon or a large hall a sound can return off two or three faces. Most realistic: 2; a third is rarely loud enough to notice.\\n\\nPerformance: each echo uses one more sound channel. Fastest: 1.",
+      "echoRange": "Echo Range",
+      "echoRange.description": "How far away a surface can be and still be checked for an echo.\\n\\nRealism: at 96 blocks an echo returns just over half a second late and is very faint; beyond that little is audible. Most realistic: 96 blocks.\\n\\nPerformance: longer checks reach further through the world. Fastest: 48 blocks or less."
     }
   }
 }

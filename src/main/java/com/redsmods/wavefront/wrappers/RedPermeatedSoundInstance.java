@@ -27,6 +27,8 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     @Getter @lombok.Setter private float delaySeconds = 0f;
     @Getter @lombok.Setter private long startNanos = 0L;
     private boolean movingLastTick = false;
+    /** Wavefront: true for an echo copy, which stays where it was put and is never re-solved. */
+    @Getter @lombok.Setter private boolean fixedEcho = false;
 
     public RedPermeatedSoundInstance(Identifier soundID, Sound sound, SoundSource category, Vec3 position, float volume, float pitch, SoundInstance wrapped, float permeationIndex, float attenuationMultiplier) {
         super(soundID, sound, category,position, volume, pitch, wrapped, attenuationMultiplier);
@@ -45,6 +47,10 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
 
     @Override
     public void tick() {
+        if (fixedEcho) {
+            updateMuffle(); // keeps its filter applied; position and volume never change
+            return;
+        }
         super.updateWrapped();
         tickCount++;
         if (super.isStopped() || Config.getInstance().updateTicks() == 0) return; // DONE or ticking sounds is off

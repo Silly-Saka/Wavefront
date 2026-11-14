@@ -14,6 +14,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Speed of sound.** Sounds arrive late over distance, started at an exact moment on the audio device's clock. Two sources playing the same sound at the same instant interfere with each other depending on where you stand.
 - **Air absorption.** High notes fade over distance, from the ISO 9613-1 formula.
 - **Doppler shift.** Pitch changes with how fast you and a sound move relative to each other.
+- **Distinct echoes.** One-shot sounds repeat off large flat surfaces that are far enough away, from the direction of the surface.
 - **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
@@ -21,7 +22,7 @@ Settings open from Mod Menu: a Quality switch and expandable rows for Walls, Dif
 
 ## What is planned
 
-Distinct echoes, underwater sound, a wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
+Underwater sound, a wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
 
 ## Known limits
 
@@ -42,7 +43,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 89 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 100 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 

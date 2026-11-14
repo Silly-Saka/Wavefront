@@ -4,6 +4,7 @@ import com.redsmods.wavefront.WavefrontMod;
 import com.redsmods.wavefront.config.Config;
 import dev.isxander.yacl3.platform.YACLPlatform;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -26,6 +27,7 @@ import wavefront.acoustics.AcousticMaterial;
 import wavefront.acoustics.AirAbsorption;
 import wavefront.acoustics.Aperture;
 import wavefront.acoustics.Bands;
+import wavefront.acoustics.Echo;
 import wavefront.acoustics.Occlusion;
 import wavefront.acoustics.PathFinder;
 import wavefront.acoustics.Propagation;
@@ -267,6 +269,106 @@ public final class AcousticSolver {
             return true;
         });
         return occlusion;
+    }
+
+    // ------------------------------------------------------------------ distinct echoes
+
+    /** One echo to play: where it seems to come from, its filter settings and how far it travelled. */
+    public static final class EchoResult {
+        public final Vec3 position;
+        public final float gain, gainLF, gainHF, pathLength;
+
+        EchoResult(Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+            this.position = position;
+            this.gain = gain;
+            this.gainLF = gainLF;
+            this.gainHF = gainHF;
+            this.pathLength = pathLength;
+        }
+    }
+
+    private static final Direction[] ECHO_DIRECTIONS = Direction.values();
+    /** How close to the listener an echo's sound is placed; its loudness is set by its filter instead. */
+    private static final double ECHO_PLACEMENT = 1.0;
+
+    /**
+     * Looks for large flat surfaces that bounce this sound back to the listener late enough to
+     * be heard as a separate echo. Returns the strongest few, loudest first.
+     *
+     * @param loudness how loud the sound itself is at the listener before any walls (0..1)
+     */
+    public static List<EchoResult> echoes(Level level, Player player, Vec3 listener, Vec3 source, float loudness) {
+        List<EchoResult> found = new java.util.ArrayList<>();
+        Config cfg = Config.getInstance();
+        AcousticDatabase db = database();
+        if (db == null || !cfg.echoes || loudness <= 0.01f) return found;
+
+        double[] lis = {listener.x, listener.y, listener.z};
+        double[] src = {source.x, source.y, source.z};
+        double straight = listener.distanceTo(source);
+        Vec3 middle = new Vec3((listener.x + source.x) / 2, (listener.y + source.y) / 2, (listener.z + source.z) / 2);
+        WorldView view = new WorldView(level, player, db, BlockPos.containing(source));
+        int range = cfg.echoRange;
+
+        for (Direction direction : ECHO_DIRECTIONS) {
+            int axis = direction.getAxis().ordinal();
+            int sign = direction.getAxisDirection().getStep();
+            // Find the nearest surface straight out from between the source and the listener.
+            Vec3 end = new Vec3(middle.x + direction.getStepX() * range, middle.y + direction.getStepY() * range,
+                    middle.z + direction.getStepZ() * range);
+            BlockHitResult hit = level.clip(new ClipContext(middle, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+            if (hit.getType() != HitResult.Type.BLOCK) continue;
+            Vec3 at = hit.getLocation();
+            double plane = axis == 0 ? at.x : axis == 1 ? at.y : at.z;
+
+            Echo.Reflection reflection = Echo.reflect(src, lis, axis, plane);
+            if (reflection == null || !reflection.distinct() || reflection.pathLength > range * 2.0) continue;
+
+            // The bounce point must sit on a broad solid face: at least 15 of the 25 blocks around it.
+            double[] p = reflection.point;
+            int[] cell = {(int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2])};
+            int behind = (int) Math.floor(plane + sign * 0.5), front = (int) Math.floor(plane - sign * 0.5);
+            int u = (axis + 1) % 3, v = (axis + 2) % 3, solid = 0;
+            for (int du = -2; du <= 2; du++) {
+                for (int dv = -2; dv <= 2; dv++) {
+                    int[] c = cell.clone();
+                    c[u] += du;
+                    c[v] += dv;
+                    c[axis] = behind;
+                    boolean wall = !view.isOpen(c[0], c[1], c[2]);
+                    c[axis] = front;
+                    if (wall && view.isOpen(c[0], c[1], c[2])) solid++;
+                }
+            }
+            if (solid < 15) continue;
+
+            // Both legs of the bounce must be clear. Step a little off the surface so it does not block itself.
+            double[] off = p.clone();
+            off[axis] = plane - sign * 0.05;
+            if (!view.segmentClear(src[0], src[1], src[2], off[0], off[1], off[2])) continue;
+            if (!view.segmentClear(off[0], off[1], off[2], lis[0], lis[1], lis[2])) continue;
+
+            int[] surface = cell.clone();
+            surface[axis] = behind;
+            BlockState state = level.getBlockState(new BlockPos(surface[0], surface[1], surface[2]));
+            double[] energy = Echo.bounceEnergy(reflection, info(db, state).material.absorption, cfg.airAbsorptionStrength);
+            Propagation.Result r = Propagation.combine(lis, src, List.of(new Propagation.Arrival(energy, reflection.pathLength, off)));
+
+            double amplitude = r.gain * Echo.spreading(straight, reflection.pathLength) * loudness * cfg.echoStrength;
+            if (amplitude < 0.01) continue; // more than 40 dB down: not worth a sound channel
+            double dx = off[0] - lis[0], dy = off[1] - lis[1], dz = off[2] - lis[2];
+            double len = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy + dz * dz));
+            Vec3 placed = new Vec3(lis[0] + dx / len * ECHO_PLACEMENT, lis[1] + dy / len * ECHO_PLACEMENT, lis[2] + dz / len * ECHO_PLACEMENT);
+            found.add(new EchoResult(placed, (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
+        }
+        found.sort((a, b) -> Float.compare(b.gain, a.gain));
+        while (found.size() > cfg.echoCount) found.remove(found.size() - 1);
+        return found;
+    }
+
+    /** The distance from the listener at which echo sounds are placed. */
+    public static double echoPlacement() {
+        return ECHO_PLACEMENT;
     }
 
     // ------------------------------------------------------------------ world view for path finding

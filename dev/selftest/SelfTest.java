@@ -354,6 +354,23 @@ public class SelfTest {
         check("a distant sound in plain view keeps its volume and loses a little treble", distant.gain > 0.94 && distant.gainHF < 0.75 && distant.gainHF > 0.55,
                 String.format("(gain %.3f, gainHF %.3f)", distant.gain, distant.gainHF));
 
+        // ---------------- distinct echoes
+        Echo.Reflection cliff = Echo.reflect(new double[]{0, 1, 0}, new double[]{2, 1, 0}, 0, 20.0);
+        near("echo off a wall 20 away: path length", cliff.pathLength, 38.0, 1e-9);
+        near("echo off a wall 20 away: extra path", cliff.extraPath, 36.0, 1e-9);
+        near("echo bounce point is on the wall", cliff.point[0], 20.0, 1e-9);
+        check("36 blocks extra is a distinct echo (105 ms)", cliff.distinct(), "");
+        Echo.Reflection nearWall = Echo.reflect(new double[]{0, 1, 0}, new double[]{2, 1, 0}, 0, 6.0);
+        check("a wall 6 away is too close to echo (8 blocks extra, 23 ms)", !nearWall.distinct(), String.format("(extra %.1f)", nearWall.extraPath));
+        check("no echo off a plane between source and listener", Echo.reflect(new double[]{0, 1, 0}, new double[]{2, 1, 0}, 0, 1.0) == null, "");
+        Echo.Reflection slanted = Echo.reflect(new double[]{0, 1, 0}, new double[]{0, 1, 12}, 0, -15.0);
+        near("off-centre bounce lands midway along the wall", slanted.point[2], 6.0, 1e-9);
+        near("and its path is the mirror-image distance", slanted.pathLength, Math.hypot(30, 12), 1e-9);
+        double[] bounce = Echo.bounceEnergy(cliff, stone.absorption, 0);
+        near("stone keeps 98 percent of the energy at 500 Hz", bounce[3], 0.98, 1e-9);
+        check("wool returns far less than stone", Echo.bounceEnergy(cliff, wool.absorption, 0)[4] < bounce[4] * 0.2, "");
+        near("an echo over 38 blocks of a sound 2 away is 19 times weaker", 1.0 / Echo.spreading(2, 38), 19.0, 1e-9);
+
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
         check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");
