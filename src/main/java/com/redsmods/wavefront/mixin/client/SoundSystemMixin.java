@@ -165,8 +165,10 @@ public abstract class SoundSystemMixin {
         soundQueue.remove(sound);
         SoundInstance customSound = soundInstanceMap.get(sound);
         RedPermeatedSoundInstance soundPermeation = soundPermInstanceMap.get(sound);
-        if (soundPermeation != null)
+        if (soundPermeation != null) {
             soundPermeation.setStopped(true);
+            soundPermeation.stopEchoes(); // each echo plays out its delay, then stops itself
+        }
         soundInstanceMap.remove(sound);
         soundPermInstanceMap.remove(sound);
 

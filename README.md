@@ -14,7 +14,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Speed of sound.** Sounds arrive late over distance, started at an exact moment on the audio device's clock. Two sources playing the same sound at the same instant interfere with each other depending on where you stand.
 - **Air absorption.** High notes fade over distance, from the ISO 9613-1 formula.
 - **Doppler shift.** Pitch changes with how fast you and a sound move relative to each other.
-- **Distinct echoes.** One-shot sounds repeat off large flat surfaces that are far enough away, from the direction of the surface.
+- **Distinct echoes.** Sounds repeat off large flat surfaces that are far enough away, from the direction of the surface. Music and looping sounds echo too, with the lateness of each echo fixed when the sound starts.
 - **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 

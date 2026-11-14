@@ -277,8 +277,11 @@ public final class AcousticSolver {
     public static final class EchoResult {
         public final Vec3 position;
         public final float gain, gainLF, gainHF, pathLength;
+        /** Which of the six block directions the surface lies in (0..5). */
+        public final int direction;
 
-        EchoResult(Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+        EchoResult(int direction, Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+            this.direction = direction;
             this.position = position;
             this.gain = gain;
             this.gainLF = gainLF;
@@ -359,7 +362,7 @@ public final class AcousticSolver {
             double dx = off[0] - lis[0], dy = off[1] - lis[1], dz = off[2] - lis[2];
             double len = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy + dz * dz));
             Vec3 placed = new Vec3(lis[0] + dx / len * ECHO_PLACEMENT, lis[1] + dy / len * ECHO_PLACEMENT, lis[2] + dz / len * ECHO_PLACEMENT);
-            found.add(new EchoResult(placed, (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
+            found.add(new EchoResult(direction.ordinal(), placed, (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
         }
         found.sort((a, b) -> Float.compare(b.gain, a.gain));
         while (found.size() > cfg.echoCount) found.remove(found.size() - 1);

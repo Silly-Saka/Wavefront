@@ -459,6 +459,7 @@ public class RaycastingHelper {
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
+            updateEchoes(world, player, playerPos, sourcePos, playing, volume);
             return;
         }
         if (originalSound instanceof RedTickableInstance) return; // classic-mode sound left over from a settings change
@@ -477,39 +478,80 @@ public class RaycastingHelper {
                 String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
 
         queueSound(newSound);
-        queueEchoes(world, player, playerPos, sourcePos, originalSound, original, volume, pitch);
+        queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, volume, pitch);
     }
 
     /**
      * Wavefront: adds the distinct echoes of a sound that has just started. Each echo is a second
      * copy of the sound, placed in the direction of the surface it bounced off, started late by
-     * the length of its longer path and made quieter by its filter. Only one-shot sounds get
-     * echoes; music and looping sounds would need a continuous second copy.
+     * the length of its longer path and made quieter by its filter.
+     *
+     * Music and looping sounds get echoes too when that setting is on. Their copies last as long
+     * as the sound does and are re-aimed as the listener moves, but the lateness of each copy is
+     * fixed when it starts.
      */
     private static void queueEchoes(Level world, Player player, Vec3 playerPos, Vec3 sourcePos, SoundInstance originalSound,
-                                    SoundInstance original, float volume, float pitch) {
+                                    SoundInstance original, RedPermeatedSoundInstance main, float volume, float pitch) {
         try {
-            if (!Config.getInstance().echoes || !Config.getInstance().soundDelay || !SoundClock.supported()) return;
-            if (original instanceof TickableSoundInstance || original.isLooping() || originalSound.getSound().shouldStream()) return;
+            Config cfg = Config.getInstance();
+            if (!cfg.echoes || !cfg.soundDelay || !SoundClock.supported()) return;
+            boolean continuous = original instanceof TickableSoundInstance || original.isLooping() || originalSound.getSound().shouldStream();
+            if (continuous && !cfg.echoContinuous) return;
 
-            // How loud the sound itself is here under Minecraft's distance fall-off, before any walls.
-            float range = 16f * Math.max(volume, 1f);
-            float loudness = Math.max(0f, 1f - (float) playerPos.distanceTo(sourcePos) / range);
-            // The echo's own copy sits close to the listener, where that fall-off barely touches it.
-            float placementLoss = Config.getInstance().experimentalReverb ? 1f - (float) AcousticSolver.echoPlacement() / range : 1f;
-
-            for (AcousticSolver.EchoResult echo : AcousticSolver.echoes(world, player, playerPos, sourcePos, loudness)) {
+            for (AcousticSolver.EchoResult echo : AcousticSolver.echoes(world, player, playerPos, sourcePos, echoLoudness(playerPos, sourcePos, volume))) {
                 RedPermeatedSoundInstance copy = new RedPermeatedSoundInstance(originalSound.getIdentifier(),
                         originalSound.getSound(), originalSound.getSource(), echo.position,
                         Math.max(0.01f, volume), pitch, original, 1f, 1f);
                 copy.setFixedEcho(true);
-                copy.setBandGains(Math.min(1f, echo.gain / Math.max(0.1f, placementLoss)), echo.gainLF, echo.gainHF, true);
+                copy.setEchoDirection(echo.direction);
+                copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, true);
                 copy.setDelaySeconds(echo.pathLength / 343f);
+                main.getEchoCopies().add(copy);
                 queueSound(copy);
             }
         } catch (Exception e) {
             System.err.println("Error adding echoes: " + e.getMessage());
         }
+    }
+
+    /**
+     * Wavefront: re-aims the echoes of a sound that is still playing. An echo whose surface is no
+     * longer there fades to silence but stays ready in case the surface comes back into play.
+     */
+    private static void updateEchoes(Level world, Player player, Vec3 playerPos, Vec3 sourcePos,
+                                     RedPermeatedSoundInstance main, float volume) {
+        if (main.getEchoCopies().isEmpty()) return;
+        try {
+            List<AcousticSolver.EchoResult> now = AcousticSolver.echoes(world, player, playerPos, sourcePos, echoLoudness(playerPos, sourcePos, volume));
+            for (RedPermeatedSoundInstance copy : main.getEchoCopies()) {
+                AcousticSolver.EchoResult match = null;
+                for (AcousticSolver.EchoResult echo : now) {
+                    if (echo.direction == copy.getEchoDirection()) match = echo;
+                }
+                copy.setTargetVolume(Math.max(0.01f, volume));
+                if (match == null) {
+                    copy.setBandGains(0f, 1f, 1f, false);
+                } else {
+                    copy.setTargetPosition(match.position);
+                    copy.setBandGains(echoFilterGain(match.gain, volume), match.gainLF, match.gainHF, false);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error updating echoes: " + e.getMessage());
+        }
+    }
+
+    /** How loud the sound itself is at the listener under Minecraft's distance fall-off, before any walls. */
+    private static float echoLoudness(Vec3 playerPos, Vec3 sourcePos, float volume) {
+        float range = 16f * Math.max(volume, 1f);
+        return Math.max(0f, 1f - (float) playerPos.distanceTo(sourcePos) / range);
+    }
+
+    /** An echo's copy sits close to the listener, where the distance fall-off barely touches it; undo that small loss. */
+    private static float echoFilterGain(float gain, float volume) {
+        float range = 16f * Math.max(volume, 1f);
+        float placementLoss = Config.getInstance().experimentalReverb ? 1f - (float) AcousticSolver.echoPlacement() / range : 1f;
+        return Math.min(1f, gain / Math.max(0.1f, placementLoss));
     }
 
     private static void queueSound(SoundInstance newSound) {

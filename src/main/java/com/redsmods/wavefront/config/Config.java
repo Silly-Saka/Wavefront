@@ -87,6 +87,7 @@ public class Config {
                 c.diffractionSearchBudget = 3000;
                 c.echoCount = 1;
                 c.echoRange = 48;
+                c.echoContinuous = false;
             }
             case BALANCED -> {
                 c.raysCast = 200;
@@ -230,6 +231,11 @@ public class Config {
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
     @CustomDescription("yacl3.config.wavefront:config.echoes.description")
     @SerialEntry public boolean echoes = true;
+
+    @AutoGen(category = "physics", group = "distance")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.echoContinuous.description")
+    @SerialEntry public boolean echoContinuous = true;
 
     @AutoGen(category = "physics", group = "distance")
     @FloatSlider(min = 0, max = 3, step = 0.1f)

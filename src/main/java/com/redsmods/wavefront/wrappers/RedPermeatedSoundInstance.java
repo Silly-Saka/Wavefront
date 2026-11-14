@@ -29,6 +29,12 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     private boolean movingLastTick = false;
     /** Wavefront: true for an echo copy, which stays where it was put and is never re-solved. */
     @Getter @lombok.Setter private boolean fixedEcho = false;
+    /** Wavefront: for an echo copy, which of the six block directions its surface lies in. */
+    @Getter @lombok.Setter private int echoDirection = -1;
+    /** Wavefront: the echo copies of this sound, kept so they can follow it and stop with it. */
+    @Getter private final java.util.List<RedPermeatedSoundInstance> echoCopies = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private boolean originalStopped = false, echoStopped = false;
+    private int stopCountdown = -1;
 
     public RedPermeatedSoundInstance(Identifier soundID, Sound sound, SoundSource category, Vec3 position, float volume, float pitch, SoundInstance wrapped, float permeationIndex, float attenuationMultiplier) {
         super(soundID, sound, category,position, volume, pitch, wrapped, attenuationMultiplier);
@@ -48,7 +54,7 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     @Override
     public void tick() {
         if (fixedEcho) {
-            updateMuffle(); // keeps its filter applied; position and volume never change
+            tickEcho();
             return;
         }
         super.updateWrapped();
@@ -96,6 +102,39 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         if (!sourceSet || !AL10.alIsSource(id)) return;
         if (bandMode) fxHandler.applyBandGainsToSource(id, gain, gainLF, gainHF);
         else fxHandler.applyMuffleToSource(id, 1 - permeationIndex);
+    }
+
+    /**
+     * Wavefront: one tick of an echo copy. It glides to wherever it was last told to be, and
+     * when its sound stops it carries on for as long as the echo takes to arrive, then stops.
+     */
+    private void tickEcho() {
+        if (!originalStopped && wrappedSound() instanceof net.minecraft.client.resources.sounds.TickableSoundInstance source && source.isStopped()) {
+            originalStopped = true;
+        }
+        if (originalStopped && !echoStopped) {
+            if (stopCountdown < 0) stopCountdown = Math.max(1, Math.round(delaySeconds * 20f));
+            if (--stopCountdown <= 0) echoStopped = true;
+        }
+        super.updatePos();
+        super.updateVolume();
+        super.updatePitch();
+        updateMuffle();
+    }
+
+    /** Wavefront: tells an echo copy that the sound it repeats has been stopped. */
+    public void originalStopped() {
+        originalStopped = true;
+    }
+
+    /** Wavefront: passes a stop on to this sound's echoes. */
+    public void stopEchoes() {
+        for (RedPermeatedSoundInstance copy : echoCopies) copy.originalStopped();
+    }
+
+    @Override
+    public boolean isStopped() {
+        return fixedEcho ? echoStopped : super.isStopped();
     }
 
     public void updateMuffle() {
