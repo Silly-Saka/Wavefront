@@ -321,14 +321,17 @@ public final class AcousticSolver {
         }
 
         // Bass. The wave simulation is for sound in air, so anything touching water keeps the wall figures.
-        double[] wave = null;
+        double[] wave = null, usual = null;
         if (cfg.waveBass && !wet) {
             BassLayer.want();
             BassField field = BassLayer.fieldFor(level, listener);
-            if (field != null) wave = field.sample(src[0], src[1], src[2]);
+            if (field != null) {
+                wave = field.sample(src[0], src[1], src[2]);
+                usual = field.usual(src[0], src[1], src[2]);
+            }
         }
         Propagation.Arrival straight = arrivals.get(0);
-        BassMix.Result bass = BassMix.mix(r, straight.energy, straight.length, pathLength, wave, cfg.waveStrength);
+        BassMix.Result bass = BassMix.mix(r, straight.energy, straight.length, pathLength, wave, usual, cfg.waveStrength);
         Solved solved = new Solved(apparent, (float) r.gain, (float) bass.gainLF, (float) gainHF, pathLength, (float) r.seconds);
         if (cfg.fullBass) solved.bassSend = (float) bass.send;
         solved.waveBass = bass.usedWave;
