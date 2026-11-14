@@ -129,6 +129,7 @@ public abstract class SoundSystemMixin {
         double speedOfSound = wavefront.mc.AcousticSolver.speedOfSoundAt(client.level, client.player.getEyePosition());
         wavefront.mc.Doppler.tick(client.player.getEyePosition(), paused, speedOfSound);
         wavefront.mc.ListenerState.tick(speedOfSound);
+        wavefront.mc.BassLayer.tick(client.level, client.player.getEyePosition());
         RaycastingHelper.castBouncingRaysAndDetectSFX(client.level, client.player);
         RaycastingHelper.playQueuedObjects();
 
@@ -195,6 +196,7 @@ public abstract class SoundSystemMixin {
     private void onStopAll(CallbackInfo ci) {
         soundQueue.clear();
         RaycastingHelper.forgetReadySounds(); // sounds worked out for a world being left must not play in the next
+        wavefront.mc.BassLayer.clear();
     }
 
     /**

@@ -15,8 +15,11 @@ public final class BassField {
         private final int n, ox, oy, oz, px, py, pz;
         /** NaN where there is no air or the burst never arrived. */
         private final float[] ratio;
+        /** The average over all cells at each distance from the listener, one entry per block. */
+        private final float[] usual;
 
-        Layer(WaveGrid grid, float[] ratio) {
+        Layer(WaveGrid grid, float[] ratio, float[] usual) {
+            this.usual = usual;
             this.n = grid.n;
             this.ox = grid.ox;
             this.oy = grid.oy;
@@ -25,6 +28,12 @@ public final class BassField {
             this.py = grid.py;
             this.pz = grid.pz;
             this.ratio = ratio;
+        }
+
+        /** The average value at this distance from the listener, or NaN when nothing is known that far out. */
+        double usual(double distance) {
+            int bin = (int) (distance + 0.5);
+            return bin < 0 || bin >= usual.length ? Double.NaN : usual[bin];
         }
 
         /** The value for a source at this world position, or NaN when nothing is known there. */
@@ -89,5 +98,17 @@ public final class BassField {
             any |= out[b] == out[b];
         }
         return any ? out : null;
+    }
+
+    /**
+     * What this place does to bass at this position's distance from the listener, averaged over
+     * every direction: the same figures as {@link #sample}, but for "a spot like any other that
+     * far away". Entries are NaN where nothing is known.
+     */
+    public double[] usual(double x, double y, double z) {
+        double distance = listenerMoved(x, y, z);
+        double[] out = new double[layers.length];
+        for (int b = 0; b < layers.length; b++) out[b] = layers[b] == null ? Double.NaN : layers[b].usual(distance);
+        return out;
     }
 }

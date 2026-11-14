@@ -103,6 +103,8 @@ public class WavefrontScreen extends Screen {
 
         out.add(topic(placed, "water", "water", List.of("waterSurfaceStrength", "submergedHearing", "submergedDirection"), List.of()));
 
+        out.add(topic(placed, "bass", "waveBass", List.of("fullBass", "waveStrength", "waveDetail", "waveRange"), List.of()));
+
         // Reverb: the main values, then one group per set of fine-tuning values.
         List<String> reverbMain = List.of("raysCast", "raysBounced", "maxRayLength", "bounceAbsorptionMultiplier");
         Map<String, List<String>> groups = new LinkedHashMap<>();

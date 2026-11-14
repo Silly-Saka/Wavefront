@@ -23,6 +23,8 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     private boolean bandMode = false;
     private float gain = 1f, gainLF = 1f, gainHF = 1f;
     private float targetGain = 1f, targetGainLF = 1f, targetGainHF = 1f;
+    /** Wavefront: extra bass on the bass channel, where it is now, where it is heading, and what OpenAL was last told. */
+    private float bassSend = 0f, targetBassSend = 0f, sentBassSend = 0f;
     /** Wavefront: seconds the sound takes to reach the listener, and the device-clock time it should start at (0 = unset). */
     @Getter @lombok.Setter private float delaySeconds = 0f;
     @Getter @lombok.Setter private long startNanos = 0L;
@@ -143,11 +145,28 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         }
     }
 
+    /**
+     * Wavefront: sets how much extra bass this sound gets on the bass channel.
+     * @param snap true to jump straight to the value (new sounds), false to glide (playing sounds)
+     */
+    public void setBassSend(float newSend, boolean snap) {
+        targetBassSend = Math.max(0f, newSend);
+        if (snap) bassSend = targetBassSend;
+    }
+
     /** Pushes the current filter settings to OpenAL, in whichever mode this sound uses. */
     public void applyFilter() {
         if (!sourceSet || !AL10.alIsSource(id)) return;
-        if (bandMode) fxHandler.applyBandGainsToSource(id, gain, gainLF, gainHF);
-        else fxHandler.applyMuffleToSource(id, 1 - permeationIndex);
+        if (bandMode) {
+            fxHandler.applyBandGainsToSource(id, gain, gainLF, gainHF);
+            float wanted = fixedEcho ? 0f : bassSend;
+            if (wanted != sentBassSend) {
+                fxHandler.applyBassSendToSource(id, wanted);
+                sentBassSend = wanted;
+            }
+        } else {
+            fxHandler.applyMuffleToSource(id, 1 - permeationIndex);
+        }
     }
 
     /**
@@ -226,6 +245,8 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
             if (Math.abs(targetGain - gain) < 0.002f) gain = targetGain;
             if (Math.abs(targetGainLF - gainLF) < 0.002f) gainLF = targetGainLF;
             if (Math.abs(targetGainHF - gainHF) < 0.002f) gainHF = targetGainHF;
+            bassSend += (targetBassSend - bassSend) * 0.35f;
+            if (Math.abs(targetBassSend - bassSend) < 0.002f) bassSend = targetBassSend;
             applyFilter();
             return;
         }

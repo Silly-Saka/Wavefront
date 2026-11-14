@@ -27,6 +27,13 @@ public class OpenALEffectsHandler {
     // Wavefront: a filter with separate bass and treble controls, created the first time it is needed.
     private int bandFilter = 0;
     private boolean bandFilterFailed = false;
+    // Wavefront: a second effect channel that passes only bass, created the first time it is needed.
+    private int bassSlot = 0, bassEffect = 0, bassSendFilter = 0;
+    private boolean bassFailed = false;
+    /** The equaliser on the bass channel lifts bass by this much (18 dB, the most OpenAL allows)... */
+    private static final float BASS_LIFT = 7.943f;
+    /** ...and the channel's own volume brings it down again, so mids and treble end up 18 dB or more below the bass. */
+    private static final float BASS_SLOT_GAIN = 0.5f;
 
     public int getDirectBlockFilter() { return directBlockFilter; }
 
@@ -483,6 +490,16 @@ public class OpenALEffectsHandler {
             }
             bandFilterFailed = false;
 
+            if (bassSlot != 0) {
+                EXTEfx.alDeleteAuxiliaryEffectSlots(bassSlot);
+                EXTEfx.alDeleteEffects(bassEffect);
+                EXTEfx.alDeleteFilters(bassSendFilter);
+            }
+            bassSlot = 0;
+            bassEffect = 0;
+            bassSendFilter = 0;
+            bassFailed = false;
+
             efxInitialized = false;
             System.out.println("EFX resources cleaned up successfully");
 
@@ -561,6 +578,83 @@ public class OpenALEffectsHandler {
         } catch (Exception e) {
             // Same as applyMuffleToSource: a failed filter update must never interrupt audio.
         }
+    }
+
+    /**
+     * Wavefront: adds extra bass to a sound through the bass channel. The main filter can only
+     * make bass quieter than the rest of a sound; this is for when it should be louder.
+     * @param send how much bass to add, as a factor of the sound's unblocked loudness (0 = none)
+     */
+    public void applyBassSendToSource(int sourceId, float send) {
+        try {
+            if (bassSlot != 0 && !EXTEfx.alIsAuxiliaryEffectSlot(bassSlot)) {
+                // The audio device was restarted: the old channel is gone with it.
+                bassSlot = 0;
+                bassEffect = 0;
+                bassSendFilter = 0;
+                bassFailed = false;
+            }
+            if (bassFailed) return;
+            if (bassSlot == 0) {
+                if (send <= 0.001f) return;
+                createBassChannel();
+                if (bassSlot == 0) return;
+            }
+            if (send <= 0.001f) {
+                AL11.alSource3i(sourceId, EXTEfx.AL_AUXILIARY_SEND_FILTER, EXTEfx.AL_EFFECTSLOT_NULL, 1, EXTEfx.AL_FILTER_NULL);
+                return;
+            }
+            EXTEfx.alFilterf(bassSendFilter, EXTEfx.AL_LOWPASS_GAIN, clamp(send / (BASS_LIFT * BASS_SLOT_GAIN), 0.0f, 1.0f));
+            EXTEfx.alFilterf(bassSendFilter, EXTEfx.AL_LOWPASS_GAINHF, 0.0f);
+            AL11.alSource3i(sourceId, EXTEfx.AL_AUXILIARY_SEND_FILTER, bassSlot, 1, bassSendFilter);
+        } catch (Exception e) {
+            // A failed update must never interrupt audio.
+        }
+    }
+
+    /**
+     * Sets up the bass channel: an equaliser that lifts everything below about 200 Hz and cuts
+     * the rest. Reverb uses the first effect send of each sound; this uses the second. An audio
+     * device with only one send per sound goes without, and bass stays capped as before.
+     */
+    private void createBassChannel() {
+        long device = ALC10.alcGetContextsDevice(ALC10.alcGetCurrentContext());
+        if (ALC10.alcGetInteger(device, EXTEfx.ALC_MAX_AUXILIARY_SENDS) < 2) {
+            bassFailed = true;
+            return;
+        }
+        AL11.alGetError();
+        int slot = EXTEfx.alGenAuxiliaryEffectSlots();
+        int effect = EXTEfx.alGenEffects();
+        int filter = EXTEfx.alGenFilters();
+        EXTEfx.alEffecti(effect, EXTEfx.AL_EFFECT_TYPE, EXTEfx.AL_EFFECT_EQUALIZER);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_LOW_GAIN, BASS_LIFT);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_LOW_CUTOFF, 200.0f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID1_GAIN, 0.126f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID1_CENTER, 500.0f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID1_WIDTH, 1.0f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID2_GAIN, 0.126f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID2_CENTER, 2000.0f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_MID2_WIDTH, 1.0f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_HIGH_GAIN, 0.126f);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_HIGH_CUTOFF, 4000.0f);
+        EXTEfx.alAuxiliaryEffectSloti(slot, EXTEfx.AL_EFFECTSLOT_EFFECT, effect);
+        EXTEfx.alAuxiliaryEffectSlotf(slot, EXTEfx.AL_EFFECTSLOT_GAIN, BASS_SLOT_GAIN);
+        // With this off, the bass channel fades with distance exactly as the sound itself does.
+        EXTEfx.alAuxiliaryEffectSloti(slot, EXTEfx.AL_EFFECTSLOT_AUXILIARY_SEND_AUTO, AL11.AL_FALSE);
+        EXTEfx.alFilteri(filter, EXTEfx.AL_FILTER_TYPE, EXTEfx.AL_FILTER_LOWPASS);
+        if (AL11.alGetError() != AL11.AL_NO_ERROR) {
+            // This audio device has no equaliser effect: go without the bass channel.
+            EXTEfx.alDeleteAuxiliaryEffectSlots(slot);
+            EXTEfx.alDeleteEffects(effect);
+            EXTEfx.alDeleteFilters(filter);
+            AL11.alGetError();
+            bassFailed = true;
+            return;
+        }
+        bassSlot = slot;
+        bassEffect = effect;
+        bassSendFilter = filter;
     }
 
     private static float clamp(float a, float b, float c) {

@@ -20,13 +20,13 @@
       "title": "Wavefront",
       "quality": {
         "performance": "Performance",
-        "performance.tip": "Lightest. 100 rays, 1 diffraction route out to 24 blocks. For slower computers.",
+        "performance.tip": "Lightest. 100 rays, 1 diffraction route out to 24 blocks, no bass waves. For slower computers.",
         "balanced": "Balanced",
-        "balanced.tip": "In between. 200 rays, 3 diffraction routes out to 32 blocks.",
+        "balanced.tip": "In between. 200 rays, 3 diffraction routes out to 32 blocks, bass waves for the lowest notes only.",
         "realism": "Realism",
-        "realism.tip": "Most thorough values that still make an audible difference, and the default. 500 rays, 4 diffraction routes out to 64 blocks, 2 echoes out to 96 blocks, sounds re-checked 5 times a second.",
+        "realism.tip": "Most thorough values that still make an audible difference, and the default. 500 rays, 4 diffraction routes out to 64 blocks, 2 echoes out to 96 blocks, bass waves at detail 2 out to 24 blocks, sounds re-checked 5 times a second.",
         "overkill": "Overkill",
-        "overkill.tip": "Every accuracy setting at its limit, whether or not you can hear the difference: 2000 rays reaching 16 chunks, every sound re-checked every tick, 4 diffraction routes with the deepest search, 3 echoes out to 128 blocks including off rough surfaces, music and loops echo, no range or sound-count limits. Strengths stay at their real-world value of 1.0. Very heavy: expect stutter even on a fast computer.",
+        "overkill.tip": "Every accuracy setting at its limit, whether or not you can hear the difference: 2000 rays reaching 16 chunks, every sound re-checked every tick, 4 diffraction routes with the deepest search, 3 echoes out to 128 blocks including off rough surfaces, music and loops echo, bass waves at detail 3 out to 32 blocks, no range or sound-count limits. Strengths stay at their real-world value of 1.0. Very heavy: expect stutter even on a fast computer.",
         "custom": "Custom",
         "custom.tip": "Your own values. Changing any setting while on a preset switches here, starting from that preset's values."
       },
@@ -55,6 +55,11 @@
           "title": "Water and lava",
           "summary": "Faster under water, duller and harder to place when submerged, barely crossing the surface.",
           "summary_off": "Water and lava are treated as air."
+        },
+        "bass": {
+          "title": "Bass",
+          "summary": "The lowest notes follow real waves through the blocks round you.",
+          "summary_off": "Bass uses the wall and diffraction figures."
         },
         "reverb": {
           "title": "Reverb",
@@ -125,7 +130,8 @@
           "walls": "Walls",
           "bending": "Diffraction",
           "distance": "Distance and Motion",
-          "water": "Water and Lava"
+          "water": "Water and Lava",
+          "bass": "Bass"
         },
         "voicechat": "Voice Chat",
         "voicechat.group": {
@@ -135,7 +141,8 @@
         "performance.group": {
           "rays": "Measuring The Space",
           "updates": "Updating Sounds",
-          "bending": "Diffraction Search"
+          "bending": "Diffraction Search",
+          "bass": "Bass Waves"
         },
         "reverb_tuning": "Reverb Tuning",
         "reverb_tuning.group": {
@@ -347,6 +354,16 @@
       "submergedHearing.description": "How much treble you lose while your head is under water or lava. 0 leaves your hearing unchanged.\\n\\nRealism: under water people hear through the bones of the skull, and measured hearing is best around 500 to 1000 Hz instead of 3000 to 4000 Hz. 1.0 takes about 12 dB off the high notes to match. That amount is an estimate from those measurements. Most realistic: 1.0.\\n\\nPerformance: no effect.",
       "submergedDirection": "Submerged Direction",
       "submergedDirection.description": "How much harder it is to tell left from right with your head under water. Sounds are moved towards the middle. 0 keeps full direction, as in air.\\n\\nRealism: 1.0 is the real amount. Sound is about four times faster in water, so the tiny gap between it reaching one ear and the other shrinks to about a quarter, and the head stops shadowing the far ear. A sound directly to your side seems only about 14 degrees off centre. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "waveBass": "Bass Waves",
+      "waveBass.description": "Works out the lowest notes (below about 180 Hz) by following real sound waves through the blocks round you, instead of using formulas. The wave squeezes through doorways and bends over walls on its own, the way it does in real air. In a room the bass piles up against the walls and in the corners and thins out in between. A sound high in the open air has less bass than the same sound on the ground, which adds its bounce.\\n\\nRealism: ON. Most realistic: ON. It covers sounds in air within Bass Wave Range of you; further away, and under water, the wall and diffraction figures are used. The result is compared with what is usual at that distance in the place you are in, and with open flat ground when you are in the open. A tunnel or small room makes all of a sound louder, which the mod does not do, so it does not do it for the bass alone either: there the differences from spot to spot are a few dB.\\n\\nPerformance: the heaviest part of the mod. It runs on background threads about once a second while sounds are playing, and again whenever you move, so the game never waits for it, but it does use processor time and memory. Fastest: OFF.",
+      "fullBass": "Full Bass",
+      "fullBass.description": "Lets the bass of a sound be louder than the rest of it. Behind a wall or round a corner the middle and top of a sound are mostly lost while the bass gets through, which is why music next door is all thump. Without this, bass can never be louder than the middle of the sound, so blocked sounds come out thin.\\n\\nRealism: ON. Most realistic: ON. It needs a second effect channel from the audio device; if there is none it does nothing.\\n\\nPerformance: no measurable cost.",
+      "waveStrength": "Bass Wave Strength",
+      "waveStrength.description": "How much of the wave result is used. 0 ignores it, 1 uses all of it, in between is a blend.\\n\\nRealism: 1.0 is what the simulation says. Most realistic: 1.0. Lower it if the bass changes more from spot to spot than you like.\\n\\nPerformance: no effect.",
+      "waveDetail": "Bass Wave Detail",
+      "waveDetail.description": "How finely the space is cut up for the wave simulation. 1: one cell per block, lowest notes only (around 63 Hz). 2: adds notes around 125 Hz on half-block cells, which also follow slabs and stairs. 3: everything on half-block cells.\\n\\nRealism: finer cells follow the shape of the world more closely and cover more of the bass. Most realistic: 3, though it is hard to tell from 2. Realism uses 2; Overkill uses 3.\\n\\nPerformance: each step up costs far more. 2 is about 10 times the work of 1, and 3 is about twice the work of 2. Fastest: 1.",
+      "waveRange": "Bass Wave Range",
+      "waveRange.description": "How far from you the wave simulation reaches sideways, in blocks. It reaches two thirds as far up and down. Sounds outside it use the wall and diffraction figures for their bass.\\n\\nRealism: bigger covers more sounds. Most sounds can only be heard within 16 blocks anyway; note blocks and explosions carry further. Most realistic: 32. Realism uses 24.\\n\\nPerformance: the work grows quickly with size. 32 costs about three times as much as 24 and uses more memory. Fastest: 12.",
       "searchTimeMs": "Search Time",
       "searchTimeMs.description": "How many thousandths of a second each round of calculations may spend looking for ways round obstacles. When it runs out, sounds already playing keep their last values until the next round, and a new sound starts with only its through-the-wall part and catches up a moment later. The game itself never waits for these calculations.\\n\\nRealism: more time means fewer sounds have to wait a round. Most realistic: 50, about one game tick; Overkill uses 250.\\n\\nPerformance: this is a ceiling on how late a new sound can start when many blocked sounds play at once. Fastest: 10."
     }

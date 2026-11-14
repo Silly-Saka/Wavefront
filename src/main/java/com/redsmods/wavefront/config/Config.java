@@ -86,6 +86,7 @@ public class Config {
                 c.diffractionRange = 24;
                 c.diffractionSearchBudget = 3000;
                 c.searchTimeMs = 10;
+                c.waveBass = false;
                 c.echoCount = 1;
                 c.echoRange = 48;
                 c.echoContinuous = false;
@@ -99,6 +100,7 @@ public class Config {
                 c.diffractionRange = 32;
                 c.diffractionSearchBudget = 6000;
                 c.searchTimeMs = 25;
+                c.waveDetail = 1;
             }
             case OVERKILL -> {
                 // Every accuracy setting at its limit, whether or not the difference can be heard.
@@ -112,6 +114,8 @@ public class Config {
                 c.diffractionRange = 64;
                 c.diffractionSearchBudget = 20000;
                 c.searchTimeMs = 250;
+                c.waveDetail = 3;
+                c.waveRange = 32;
                 c.echoCount = 3;
                 c.echoRange = 128;
                 c.echoContinuous = true;
@@ -292,6 +296,34 @@ public class Config {
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.submergedDirection.description")
     @SerialEntry public float submergedDirection = 1.0f;
+
+    // ===== Bass =====
+    @AutoGen(category = "physics", group = "bass")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.waveBass.description")
+    @SerialEntry public boolean waveBass = true;
+
+    @AutoGen(category = "physics", group = "bass")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.fullBass.description")
+    @SerialEntry public boolean fullBass = true;
+
+    @AutoGen(category = "physics", group = "bass")
+    @FloatSlider(min = 0, max = 1, step = 0.05f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.waveStrength.description")
+    @SerialEntry public float waveStrength = 1.0f;
+
+    @AutoGen(category = "performance", group = "bass")
+    @IntSlider(min = 1, max = 3, step = 1)
+    @CustomDescription("yacl3.config.wavefront:config.waveDetail.description")
+    @SerialEntry public int waveDetail = 2;
+
+    @AutoGen(category = "performance", group = "bass")
+    @IntSlider(min = 12, max = 32, step = 4)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.waveRange.description")
+    @SerialEntry public int waveRange = 24;
 
     // ===== Voice Chat tab =====
     @AutoGen(category = "voicechat", group = "main")

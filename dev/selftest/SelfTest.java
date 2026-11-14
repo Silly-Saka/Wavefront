@@ -560,6 +560,12 @@ public class SelfTest {
         }
         check("open air comes out as open air, within 2 dB at any distance and direction", worst < 2.0, String.format("(worst %.2f dB)", worst));
 
+        WaveGrid nearGrid = new WaveGrid(0, 0, 0, 16, 16, 16, 2);
+        nearGrid.build();
+        double[] beside = nearGrid.solveAll(8.25, 8.25, 8.25, 2, 1, WaveGrid.SERIAL).sample(9.25, 8.75, 8.25);
+        check("a source right beside the listener in open air comes out as open air", Math.abs(db(beside[0])) < 1.0 && Math.abs(db(beside[1])) < 1.0,
+                String.format("(63 Hz %.2f dB, 125 Hz %.2f dB)", db(beside[0]), db(beside[1])));
+
         // ---- hard ground: the bounce off the ground adds to the direct sound
         BassField ground = waveRoom(2, 0, false, null).solveAll(8.5, 7.62, 16.5, 2, 1, WaveGrid.SERIAL);
         double[] onGround = ground.sample(16.5, 6.5, 16.5);
@@ -611,28 +617,34 @@ public class SelfTest {
         List<Propagation.Arrival> clear = Propagation.list();
         clear.add(Propagation.straight(new double[]{10, 0, 0}, 10, ones.clone()));
         Propagation.Result inView = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, clear);
-        BassMix.Result plain = BassMix.mix(inView, ones, 10, 10, null, 1.0);
+        BassMix.Result plain = BassMix.mix(inView, ones, 10, 10, null, null, 1.0);
         check("a sound in plain view with no wave result is left alone", plain.gainLF == 1.0 && plain.send == 0.0 && !plain.usedWave, "");
-        BassMix.Result onOpenGround = BassMix.mix(inView, ones, 10, 10, BassMix.OPEN_GROUND.clone(), 1.0);
+        BassMix.Result onOpenGround = BassMix.mix(inView, ones, 10, 10, BassMix.OPEN_GROUND.clone(), null, 1.0);
         check("on open flat ground the wave result changes nothing", Math.abs(onOpenGround.gainLF - 1.0) < 1e-9 && onOpenGround.send < 1e-9 && onOpenGround.usedWave, "");
-        BassMix.Result inTheAir = BassMix.mix(inView, ones, 10, 10, new double[]{1.0, 1.0}, 1.0);
+        BassMix.Result inTheAir = BassMix.mix(inView, ones, 10, 10, new double[]{1.0, 1.0}, null, 1.0);
         check("high in the air, away from any surface, there is less bass", inTheAir.gainLF < 0.9 && inTheAir.send == 0.0, String.format("(bass factor %.2f)", inTheAir.gainLF));
-        BassMix.Result inRoom = BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, 1.0);
-        check("in a small room the extra bass goes to the bass channel", inRoom.gainLF == 1.0 && inRoom.send > 0.3 && inRoom.send < 1.0, String.format("(extra %.2f)", inRoom.send));
-        check("bass is never raised by more than 9 dB", BassMix.mix(inView, ones, 10, 10, new double[]{1000, 1000}, 1.0).bass[0] <= BassMix.MAX_BOOST, "");
-        check("half strength lands half way in decibels", Math.abs(db(BassMix.mix(inView, ones, 10, 10, new double[]{BassMix.OPEN_GROUND[0] * 3.1623, 1.0}, 0.5).bass[0]) - 2.5) < 0.05, "");
-        check("zero strength ignores the wave result", !BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, 0.0).usedWave, "");
-        check("a band with no wave result keeps its wall figure", BassMix.mix(inView, ones, 10, 10, new double[]{Double.NaN, 9.0}, 1.0).bass[0] == 1.0, "");
+        BassMix.Result atWall = BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, null, 1.0);
+        check("where the bass piles up, the extra goes to the bass channel", atWall.gainLF == 1.0 && atWall.send > 0.3 && atWall.send < 1.0, String.format("(extra %.2f)", atWall.send));
+        BassMix.Result inTunnel = BassMix.mix(inView, ones, 10, 10, new double[]{100.0, 100.0}, new double[]{100.0, 100.0}, 1.0);
+        check("in a tunnel, where everything is louder, a sound in view keeps its balance", Math.abs(inTunnel.gainLF - 1.0) < 1e-9 && inTunnel.send < 1e-9, "");
+        BassMix.Result tunnelCorner = BassMix.mix(inView, ones, 10, 10, new double[]{25.0, 25.0}, new double[]{100.0, 100.0}, 1.0);
+        check("a spot the tunnel's bass reaches less well has less bass", tunnelCorner.gainLF < 0.8, String.format("(bass factor %.2f)", tunnelCorner.gainLF));
+        BassMix.Result quietPlace = BassMix.mix(inView, ones, 10, 10, BassMix.OPEN_GROUND.clone(), new double[]{0.5, 0.5}, 1.0);
+        check("what is usual never counts for less than open ground", Math.abs(quietPlace.gainLF - 1.0) < 1e-9 && quietPlace.send < 1e-9, "");
+        check("bass is never raised by more than 6 dB", BassMix.mix(inView, ones, 10, 10, new double[]{1000, 1000}, null, 1.0).bass[0] <= BassMix.MAX_BOOST, "");
+        check("half strength lands half way in decibels", Math.abs(db(BassMix.mix(inView, ones, 10, 10, new double[]{BassMix.OPEN_GROUND[0] * 3.1623, 1.0}, null, 0.5).bass[0]) - 2.5) < 0.05, "");
+        check("zero strength ignores the wave result", !BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, null, 0.0).usedWave, "");
+        check("a band with no wave result keeps its wall figure", BassMix.mix(inView, ones, 10, 10, new double[]{Double.NaN, 9.0}, null, 1.0).bass[0] == 1.0, "");
 
         // behind a stone wall: the middle of the sound loses far more than the bass
         double[] wallLeak = {1e-3, 4e-4, 1e-4, 3e-5, 1e-5, 1e-5, 1e-5, 1e-5};
         List<Propagation.Arrival> blocked = Propagation.list();
         blocked.add(Propagation.straight(new double[]{10, 0, 0}, 10, wallLeak.clone()));
         Propagation.Result behind = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, blocked);
-        BassMix.Result thump = BassMix.mix(behind, wallLeak, 10, 10, null, 1.0);
+        BassMix.Result thump = BassMix.mix(behind, wallLeak, 10, 10, null, null, 1.0);
         check("behind a wall the bass that the filter cannot give goes to the bass channel", thump.gainLF == 1.0 && thump.send > behind.gain,
                 String.format("(middle %.4f, extra bass %.4f)", behind.gain, thump.send));
-        BassMix.Result leakPlusDoor = BassMix.mix(behind, wallLeak, 10, 10, new double[]{0.4, 0.2}, 1.0);
+        BassMix.Result leakPlusDoor = BassMix.mix(behind, wallLeak, 10, 10, new double[]{0.4, 0.2}, null, 1.0);
         check("what leaks through the wall is added to what the wave carries round it",
                 Math.abs(leakPlusDoor.bass[0] - (0.4 / BassMix.OPEN_GROUND[0] + wallLeak[0])) < 1e-9, "");
     }

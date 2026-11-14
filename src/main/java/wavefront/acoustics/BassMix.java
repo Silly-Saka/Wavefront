@@ -20,8 +20,8 @@ public final class BassMix {
      * change it.
      */
     public static final double[] OPEN_GROUND = {3.7, 3.7};
-    /** Bass is never raised by more than this (energy; 8 is 9 dB). */
-    public static final double MAX_BOOST = 8.0;
+    /** Bass is never raised by more than this (energy; 4 is 6 dB). */
+    public static final double MAX_BOOST = 4.0;
     /** Below this share of bass getting straight through, the blocks in the way count as a wall (6 dB). */
     static final double WALL = 0.25;
 
@@ -50,10 +50,11 @@ public final class BassMix {
      * @param apparentDistance distance at which the sound is placed, in blocks
      * @param wave             wave result per simulated band, compared with open air at the straight
      *                         distance; null or NaN entries where nothing is known
+     * @param usual            the wave result averaged over everywhere at that distance; null if unknown
      * @param strength         0 ignores the wave result, 1 uses it fully
      */
     public static Result mix(Propagation.Result combined, double[] straightEnergy, double straightDistance,
-                             double apparentDistance, double[] wave, double strength) {
+                             double apparentDistance, double[] wave, double[] usual, double strength) {
         double[] bass = {combined.bandEnergy[0], combined.bandEnergy[1], combined.bandEnergy[2]};
         boolean usedWave = false;
         if (wave != null && strength > 0) {
@@ -61,7 +62,13 @@ public final class BassMix {
             double scale = straightDistance > 0.1 ? (apparentDistance / straightDistance) * (apparentDistance / straightDistance) : 1.0;
             for (int b = 0; b < Math.min(wave.length, OPEN_GROUND.length); b++) {
                 if (wave[b] != wave[b]) continue; // NaN: nothing known for this band
-                double airborne = wave[b] / OPEN_GROUND[b];
+                // In a tunnel or a small room sound cannot spread, so everything in it is louder,
+                // not just the bass. The rest of the sound is not given that rise, so the bass is
+                // not either: it is measured against what is usual at that distance in this
+                // place. In the open, what is usual is the open-ground figure.
+                double reference = OPEN_GROUND[b];
+                if (usual != null && b < usual.length && usual[b] == usual[b]) reference = Math.max(reference, usual[b]);
+                double airborne = wave[b] / reference;
                 // The simulation treats walls as sealed, so what leaks through them is added on top.
                 // With nothing much in the way, the straight path is already part of the wave result.
                 double total = (straightEnergy[b] >= WALL ? airborne : airborne + straightEnergy[b]) * scale;

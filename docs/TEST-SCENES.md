@@ -1,6 +1,6 @@
 # Test scenes
 
-Build these in a flat creative world to check Wavefront by ear. Set **Debug Readout** to Action Bar to see each sound's volume factor ("gain"), treble factor and path length.
+Build these in a flat creative world to check Wavefront by ear. Set **Debug Readout** to Action Bar to see each sound's volume factor ("gain"), bass and treble factors and path length.
 
 | Scene | How to build it | What you should hear |
 |---|---|---|
@@ -10,3 +10,7 @@ Build these in a flat creative world to check Wavefront by ear. Set **Debug Read
 | Fence and bars | A jukebox behind a row of fences, then behind iron bars. | Almost no change compared with nothing in the way. |
 | Materials | A jukebox sealed in a 1-thick box. Rebuild the box in stone, planks, glass and wool. | Wool blocks most, then stone, then planks, then glass. Raise **Wall Strength** and every box gets quieter. |
 | Sealed room | A sound source sealed in a 2-thick stone box with no gaps. | Effectively silent at the default Wall Strength. |
+| Music next door | A jukebox in a sealed room with plank walls 1 thick. Stand outside, 3 blocks from the wall. | Mostly thump: the bass is clearly louder than the rest. The debug line shows a number after the plus sign in "bass 1.00 +0.05". Turn **Full Bass** off and the sound goes thin. |
+| Pillar | A note block on planks (the bass instrument) on a repeater clock on the ground, heard from 8 blocks away. Then the same note block on top of a pillar 12 blocks up, heard from the ground 8 blocks from the foot of the pillar. | Thinner on the pillar: it has lost the bounce off the ground. The debug line shows "(wave, N ms)" when the wave result was used; N is how long the last run took. Turn **Bass Waves** off and the bass factor goes back to 1.00. |
+| Room corners | A closed stone room 5 by 5 and 3 high with the same note block in one corner. Walk slowly from wall to wall. | The bass is a little stronger near the walls and weaker in the middle, a few dB at most. Watch the bass numbers in the debug line change as you move. |
+| Bass through a doorway | A wall to the ceiling of a closed room, with a 1 wide, 2 tall doorway. A note block on planks on a clock 6 blocks behind the wall, to one side of the doorway. | Low notes come through noticeably better than with a higher-pitched instrument. Put a door in the doorway and shut it: the bass drops within about a second. |

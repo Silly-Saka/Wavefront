@@ -29,6 +29,8 @@ import wavefront.acoustics.AcousticMaterial;
 import wavefront.acoustics.AirAbsorption;
 import wavefront.acoustics.Aperture;
 import wavefront.acoustics.Bands;
+import wavefront.acoustics.BassField;
+import wavefront.acoustics.BassMix;
 import wavefront.acoustics.Echo;
 import wavefront.acoustics.MediaPath;
 import wavefront.acoustics.Medium;
@@ -85,6 +87,14 @@ public final class AcousticSolver {
          * result and keeps what it had.
          */
         public boolean partial = false;
+        /**
+         * Extra bass to play on the bass channel, as a factor of the sound's unblocked loudness.
+         * Above 0 when the bass should be louder than the rest of the sound, which the main
+         * filter cannot do: behind walls, round corners, and in small hard rooms.
+         */
+        public float bassSend = 0f;
+        /** True if the wave simulation supplied the bass for this result. */
+        public boolean waveBass = false;
     }
 
     private static final String DATABASE_RESOURCE = "/assets/wavefront/acoustics/acoustic_materials.json";
@@ -95,7 +105,7 @@ public final class AcousticSolver {
     private static final Map<Block, BlockInfo> blockInfo = new ConcurrentHashMap<>();
 
     /** What the database says about one kind of block. */
-    private static final class BlockInfo {
+    static final class BlockInfo {
         final AcousticMaterial material;
         /** -1: use the collision shape. 0: ignore the block. Between: fraction of the cell that is solid. */
         final double fill;
@@ -153,7 +163,7 @@ public final class AcousticSolver {
         }
     }
 
-    private static BlockInfo info(AcousticDatabase db, BlockState state) {
+    static BlockInfo info(AcousticDatabase db, BlockState state) {
         Block block = state.getBlock();
         BlockInfo cached = blockInfo.get(block);
         if (cached != null) return cached;
@@ -261,7 +271,7 @@ public final class AcousticSolver {
         Propagation.Arrival straightArrival = Propagation.straight(src, straight, throughWalls);
         if (wet) applyMedia(level, db, cfg, straightArrival, src, lis);
         arrivals.add(straightArrival);
-        if (!direct.blocked()) return finish(listener, lis, src, arrivals, cfg, listenerIn); // in plain view
+        if (!direct.blocked()) return finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet); // in plain view
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
@@ -291,20 +301,38 @@ public final class AcousticSolver {
             }
         }
 
-        Solved result = finish(listener, lis, src, arrivals, cfg, listenerIn);
+        Solved result = finish(level, listener, lis, src, arrivals, cfg, listenerIn, wet);
         result.partial = partial;
         return result;
     }
 
     /** Lets the air take its share from every arrival, then merges them into one result. */
-    private static Solved finish(Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals, Config cfg, Medium listenerIn) {
+    private static Solved finish(Level level, Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals,
+                                 Config cfg, Medium listenerIn, boolean wet) {
         for (Propagation.Arrival arrival : arrivals) {
             AirAbsorption.apply(arrival.energy, arrival.airLength, cfg.airAbsorptionStrength);
         }
         Propagation.Result r = Propagation.combine(lis, src, arrivals);
         Vec3 apparent = new Vec3(r.apparentPosition[0], r.apparentPosition[1], r.apparentPosition[2]);
         double gainHF = isFluid(listenerIn) ? r.gainHF * submergedTreble(cfg) : r.gainHF;
-        return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) gainHF, (float) listener.distanceTo(apparent), (float) r.seconds);
+        float pathLength = (float) listener.distanceTo(apparent);
+        if (!cfg.waveBass && !cfg.fullBass) {
+            return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) gainHF, pathLength, (float) r.seconds);
+        }
+
+        // Bass. The wave simulation is for sound in air, so anything touching water keeps the wall figures.
+        double[] wave = null;
+        if (cfg.waveBass && !wet) {
+            BassLayer.want();
+            BassField field = BassLayer.fieldFor(level, listener);
+            if (field != null) wave = field.sample(src[0], src[1], src[2]);
+        }
+        Propagation.Arrival straight = arrivals.get(0);
+        BassMix.Result bass = BassMix.mix(r, straight.energy, straight.length, pathLength, wave, cfg.waveStrength);
+        Solved solved = new Solved(apparent, (float) r.gain, (float) bass.gainLF, (float) gainHF, pathLength, (float) r.seconds);
+        if (cfg.fullBass) solved.bassSend = (float) bass.send;
+        solved.waveBass = bass.usedWave;
+        return solved;
     }
 
     // ------------------------------------------------------------------ water and lava

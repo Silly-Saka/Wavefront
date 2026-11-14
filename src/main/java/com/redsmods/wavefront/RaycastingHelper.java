@@ -488,6 +488,7 @@ public class RaycastingHelper {
             playing.setTargetPosition(solved.position);
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
+            playing.setBassSend(solved.bassSend, false);
             playing.setAttenuationMultiplier(1f);
             if (!lateInRound) updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.seconds);
             return;
@@ -499,16 +500,24 @@ public class RaycastingHelper {
                 originalSound.getSound(), originalSound.getSource(), solved.position,
                 Math.max(0.01f, volume), pitch, original, 1f, 1f);
         newSound.setBandGains(solved.gain, solved.gainLF, solved.gainHF, true);
+        newSound.setBassSend(solved.bassSend, true);
         newSound.setDelaySeconds(solved.seconds); // 343 blocks per second in air, faster under water
         soundPermInstanceMap.put(original, newSound);
 
         if (Config.getInstance().debug == DebugType.ACTION_BAR) client.player.sendOverlayMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)")));
+                physicsDebugLine(original, solved)));
         else if (Config.getInstance().debug == DebugType.CHAT) client.player.sendSystemMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)")));
+                physicsDebugLine(original, solved)));
 
         queueSound(newSound);
         if (!lateInRound) queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, echoVolume, pitch);
+    }
+
+    /** Wavefront: the line shown by the debug setting for each new sound. */
+    private static String physicsDebugLine(SoundInstance original, AcousticSolver.Solved solved) {
+        return String.format("%s  gain %.2f  bass %.2f +%.2f%s  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(),
+                solved.gain, solved.gainLF, solved.bassSend, solved.waveBass ? String.format(" (wave, %.0f ms)", wavefront.mc.BassLayer.lastMillis) : "",
+                solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)");
     }
 
     /**

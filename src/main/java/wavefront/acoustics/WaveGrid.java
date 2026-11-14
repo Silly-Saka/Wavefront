@@ -150,6 +150,11 @@ public final class WaveGrid {
         }
     }
 
+    /** Lets go of the scratch space kept between runs. */
+    public static void releaseMemory() {
+        Work.release();
+    }
+
     /** True if this world position is in a cell of air that connects to at least one neighbour. */
     public boolean isOpen(double x, double y, double z) {
         int i = cellAt(x, y, z);
@@ -203,8 +208,13 @@ public final class WaveGrid {
     public BassField.Layer solve(int band, double lx, double ly, double lz, int parts, Runner runner) {
         int source = openCellNear(lx, ly, lz);
         if (source < 0) return null;
-        Work work = new Work(cells);
-        return new BassField.Layer(this, simulate(band, source, work, Math.max(1, parts), runner));
+        Work work = Work.take(cells);
+        try {
+            float[] ratio = simulate(band, source, work, Math.max(1, parts), runner);
+            return new BassField.Layer(this, ratio, usual(ratio, source));
+        } finally {
+            Work.give(work);
+        }
     }
 
     /** Runs every band on this one grid: 63 Hz alone for bands = 1, plus 125 Hz for bands = 2. */
@@ -212,10 +222,17 @@ public final class WaveGrid {
         int source = openCellNear(lx, ly, lz);
         if (source < 0) return null;
         bands = Math.max(1, Math.min(MAX_BANDS, bands));
-        Work work = new Work(cells);
-        BassField.Layer[] layers = new BassField.Layer[bands];
-        for (int b = 0; b < bands; b++) layers[b] = new BassField.Layer(this, simulate(b, source, work, Math.max(1, parts), runner));
-        return new BassField(lx, ly, lz, layers);
+        Work work = Work.take(cells);
+        try {
+            BassField.Layer[] layers = new BassField.Layer[bands];
+            for (int b = 0; b < bands; b++) {
+                float[] ratio = simulate(b, source, work, Math.max(1, parts), runner);
+                layers[b] = new BassField.Layer(this, ratio, usual(ratio, source));
+            }
+            return new BassField(lx, ly, lz, layers);
+        } finally {
+            Work.give(work);
+        }
     }
 
     /** Scratch space for one run, reused from band to band. */
@@ -228,6 +245,35 @@ public final class WaveGrid {
             other = new float[cells];
             energy = new float[cells];
             arrived = new int[cells];
+        }
+
+        // Runs come round about once a second with grids of the same two sizes, so the last
+        // scratch space of each size is kept instead of asking for tens of megabytes again.
+        private static final Work[] SPARE = new Work[2];
+
+        static synchronized Work take(int cells) {
+            for (int i = 0; i < SPARE.length; i++) {
+                Work w = SPARE[i];
+                if (w != null && w.arrived.length == cells) {
+                    SPARE[i] = null;
+                    return w;
+                }
+            }
+            return new Work(cells);
+        }
+
+        static synchronized void give(Work work) {
+            for (int i = 0; i < SPARE.length; i++) {
+                if (SPARE[i] == null) {
+                    SPARE[i] = work;
+                    return;
+                }
+            }
+            SPARE[0] = work;
+        }
+
+        static synchronized void release() {
+            Arrays.fill(SPARE, null);
         }
 
         void clear() {
@@ -279,17 +325,50 @@ public final class WaveGrid {
                     int i = (z * py + y) * px + x;
                     if (mask[i] == 0) continue;
                     int r2 = (x - sx) * (x - sx) + (y - sy) * (y - sy) + (z - sz) * (z - sz);
-                    if (r2 < 9) {
-                        ratio[i] = 1f; // right next to the listener nothing has had room to change
-                    } else if (arrived[i] >= 0 && arrived[i] + burst.steps <= steps) {
+                    // The listener's own cell and the six touching it are left unknown: the open-air
+                    // comparison is up to 2 dB out there. From the next cells on it is within 1 dB.
+                    if (r2 >= 2 && arrived[i] >= 0 && arrived[i] + burst.steps <= steps) {
                         double quartic = (pow4(x - sx) + pow4(y - sy) + pow4(z - sz)) / ((double) r2 * r2);
                         ratio[i] = (float) (energy[i] * (double) r2 / open.energyTimesDistance2(quartic));
                     }
-                    // otherwise: the burst never got here in the time allowed, so nothing is known
+                    // otherwise the burst never got here in the time allowed, so nothing is known
                 }
             }
         }
         return ratio;
+    }
+
+    /**
+     * The average of the result over every cell at about the same distance from the listener,
+     * one entry per block of distance. It says what this place does to a sound at that distance
+     * wherever it stands: little in the open, a great deal in a tunnel, which keeps sound from
+     * spreading. Comparing one spot with it shows what is special about the spot.
+     */
+    private float[] usual(float[] ratio, int source) {
+        int sx = source % px, sy = (source / px) % py, sz = source / pxy;
+        int bins = (int) Math.ceil(Math.sqrt(sq(px) + sq(py) + sq(pz)) / n) + 2;
+        double[] sum = new double[bins];
+        int[] count = new int[bins];
+        for (int z = 1; z < pz - 1; z++) {
+            for (int y = 1; y < py - 1; y++) {
+                for (int x = 1; x < px - 1; x++) {
+                    float value = ratio[(z * py + y) * px + x];
+                    if (value != value) continue; // NaN
+                    int bin = (int) (Math.sqrt(sq(x - sx) + sq(y - sy) + sq(z - sz)) / n + 0.5);
+                    sum[bin] += value;
+                    count[bin]++;
+                }
+            }
+        }
+        float[] usual = new float[bins];
+        for (int b = 0; b < bins; b++) {
+            double total = sum[b];
+            int cells = count[b];
+            if (b > 0) { total += sum[b - 1]; cells += count[b - 1]; }
+            if (b < bins - 1) { total += sum[b + 1]; cells += count[b + 1]; }
+            usual[b] = cells == 0 ? Float.NaN : (float) (total / cells);
+        }
+        return usual;
     }
 
     /** Steps the wave. The burst is fed in at the source cell; energy is added up per cell from when it first arrives. */
