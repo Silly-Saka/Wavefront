@@ -43,8 +43,8 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     public void tick() {
         super.updateWrapped();
         tickCount++;
-        if (super.isStopped() || Config.getInstance().tickRate == 0) return; // DONE or ticking sounds is off
-        if (tickCount % Config.getInstance().tickRate == 0) { // only update once every .1 second
+        if (super.isStopped() || Config.getInstance().updateTicks() == 0) return; // DONE or ticking sounds is off
+        if (tickCount % Config.getInstance().updateTicks() == 0) { // only update once every .1 second
             if (!RaycastingHelper.permeatedTickQueue.contains(this))
                 RaycastingHelper.permeatedTickQueue.add(this);
         }
@@ -88,10 +88,10 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
 
         // Calculate the difference between current and target volume
         float deltaVolume = targetMuffle - permeationIndex;
-        float maxVolumeChange = Math.max(Math.abs(deltaVolume / Config.getInstance().tickRate),0.3f); // yay magic number
+        float maxVolumeChange = Math.max(Math.abs(deltaVolume / Config.getInstance().updateTicks()),0.3f); // yay magic number
 
         // If we're already at the target or very close, set volume directly
-        if (Math.abs(deltaVolume) <= 0.001f || Math.abs(deltaVolume) > maxVolumeChange * Config.getInstance().tickRate) {
+        if (Math.abs(deltaVolume) <= 0.001f || Math.abs(deltaVolume) > maxVolumeChange * Config.getInstance().updateTicks()) {
             permeationIndex = targetMuffle;
             if (sourceSet && AL10.alIsSource(id))
                 fxHandler.applyMuffleToSource(id,1-permeationIndex);

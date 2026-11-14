@@ -198,11 +198,11 @@ public final class AcousticSolver {
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
-        if (cfg.diffraction && midThrough < 0.25 && straight <= cfg.diffractionRange) {
+        if (cfg.diffraction && midThrough < 0.25 && straight <= cfg.bendRange()) {
             WorldView view = new WorldView(level, player, db, sourceCell);
             int margin = Math.max(6, Math.min(16, (int) (straight / 2) + 4));
-            List<PathFinder.Route> routes = new PathFinder(view, cfg.diffractionSearchBudget)
-                    .findRoutes(src, lis, cfg.diffractionRoutes, margin);
+            List<PathFinder.Route> routes = new PathFinder(view, cfg.searchBudget())
+                    .findRoutes(src, lis, cfg.routes(), margin);
             for (PathFinder.Route route : routes) {
                 if (route.bends == 0) continue; // a clear straight line is already covered above
                 Propagation.Arrival arrival = Propagation.diffracted(route, straight);

@@ -13,7 +13,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Voice chat.** Simple Voice Chat voices get the same treatment.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
-Turn **Sound Physics** off in the settings to get the original Sound Physics Perfected behaviour back.
+Settings open from Mod Menu. The **Quick Setup** tab has a quality preset and the main switches; turn **Sound Physics** off there to get the original Sound Physics Perfected behaviour back.
 
 ## What is planned
 

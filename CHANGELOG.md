@@ -10,4 +10,7 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Added edge diffraction with up to three routes per sound.
 - Blocked sounds now appear to come from the edge or opening they travelled through.
 - Voice chat uses the same occlusion and diffraction.
-- New "Sound Physics" settings tab; plain-language tooltips on the main settings.
+- Own settings layout: Quick Setup, Walls and Corners, Voice Chat, Performance, Reverb Tuning and Advanced tabs.
+- Quality presets (Low, Medium, High, Custom).
+- Plain-language tooltips on the main settings.
+- New icon.

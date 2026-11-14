@@ -34,24 +34,38 @@
         "modern": "Modern",
         "version140": "1.4.0",
         "version100": "1.0.0"
+      },
+      "QualityPreset": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "custom": "Custom"
       }
     },
     "wavefront:config": {
       "category": {
-        "physics": "Sound Physics",
+        "quick": "Quick Setup",
+        "quick.group": {
+          "main": "Start Here"
+        },
+        "physics": "Walls and Corners",
         "physics.group": {
-          "main": "Main",
           "walls": "Walls",
           "bending": "Sound Bending Round Corners"
         },
-        "general": "Rays and Performance",
-        "general.group": {
-          "main": "Main",
-          "permeation": "Classic Mode (only used when Sound Physics is off)"
+        "voicechat": "Voice Chat",
+        "voicechat.group": {
+          "main": "Other Players' Voices"
         },
-        "reverb_tuning": "Reverb (Advanced)",
+        "performance": "Performance",
+        "performance.group": {
+          "rays": "Measuring The Space",
+          "updates": "Updating Sounds",
+          "bending": "Finding Ways Round Obstacles"
+        },
+        "reverb_tuning": "Reverb Tuning",
         "reverb_tuning.group": {
-          "main": "Main",
+          "main": "Method",
           "global": "Global",
           "distance_and_attenuation": "Distance and Attenuation",
           "room_size_and_volume": "Room Size and Volume",
@@ -67,25 +81,22 @@
           "rt60": "RT60 Calculation",
           "interpolation_weights": "Interpolation Weights"
         },
-        "voicechat": "Voice Chat",
-        "voicechat.group": {
-          "main": "Main"
-        },
-        "blacklist": "Blacklist",
-        "blacklist.group": {
-          "main": "Main"
+        "advanced": "Advanced",
+        "advanced.group": {
+          "tools": "Tools",
+          "classic": "Classic Mode (only used when Sound Physics is off)"
         }
       },
       "raysCast": "Rays Cast",
-      "raysCast.description": "How many invisible rays are fired from you to measure the space around you. They work out how big and echoey the place is.\\n\\nExample: more rays give steadier reverb in caves.\\n\\nRecommended: 200. Try 100 on a slow computer.\\n\\nPerformance cost: HIGH.",
+      "raysCast.description": "How many invisible rays are fired from you to measure the space around you. They work out how big and echoey the place is.\\n\\nExample: more rays give steadier reverb in caves.\\n\\nRecommended: 200. Try 100 on a slow computer.\\n\\nPerformance cost: HIGH.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "raysBounced": "Ray Bounces",
-      "raysBounced.description": "How many times each ray bounces off walls before it stops. More bounces = more reverb and a better sense of large spaces.\\n\\nRecommended: 3.\\n\\nPerformance cost: HIGH.",
+      "raysBounced.description": "How many times each ray bounces off walls before it stops. More bounces = more reverb and a better sense of large spaces.\\n\\nRecommended: 3.\\n\\nPerformance cost: HIGH.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "maxRayLength": "Ray Length",
-      "maxRayLength.description": "How far each ray travels, in chunks (16 blocks each).\\n\\nRecommended: 4 chunks.\\n\\nPerformance cost: medium.",
+      "maxRayLength.description": "How far each ray travels, in chunks (16 blocks each).\\n\\nRecommended: 4 chunks.\\n\\nPerformance cost: medium.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "procRange": "Processing Range",
       "procRange.description": "Sounds further away than this are left exactly as vanilla Minecraft plays them. -1 means no limit.\\n\\nRecommended: 200 blocks.",
       "tickRate": "Update Speed",
-      "tickRate.description": "How often a sound that is still playing gets re-checked, in game ticks (20 ticks = 1 second). Lower = follows you more quickly as you move. 0 = never re-check.\\n\\nExample: at 10, a jukebox adjusts twice a second as you walk round a building.\\n\\nRecommended: 10. Try 5 for snappier response on a fast computer.\\n\\nPerformance cost: medium.",
+      "tickRate.description": "How often a sound that is still playing gets re-checked, in game ticks (20 ticks = 1 second). Lower = follows you more quickly as you move. 0 = never re-check.\\n\\nExample: at 10, a jukebox adjusts twice a second as you walk round a building.\\n\\nRecommended: 10. Try 5 for snappier response on a fast computer.\\n\\nPerformance cost: medium.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "soundMult": "Max Sound Distance Multiplier",
       "soundMult.description": "1 is just default Minecraft sound dist\\nPERFORMANCE IMPACT: HIGH",
       "volumeMultiplier": "Volume Multiplier",
@@ -225,11 +236,13 @@
       "diffractionStrength": "Bending Loss",
       "diffractionStrength.description": "How much quieter sound gets when it has to bend. Higher = corners cut more sound. 0 = bending costs nothing.\\n\\nExample: at 1.0 the loss follows the real-world barrier formula.\\n\\nRecommended: 1.0.",
       "diffractionRoutes": "Routes Per Sound",
-      "diffractionRoutes.description": "How many different ways round an obstacle are added together for each sound.\\n\\nExample: for a sound behind a wall, 3 lets it arrive over the top and round both ends.\\n\\nRecommended: 3. Use 1 on a slow computer.\\n\\nPerformance cost: grows with this number.",
+      "diffractionRoutes.description": "How many different ways round an obstacle are added together for each sound.\\n\\nExample: for a sound behind a wall, 3 lets it arrive over the top and round both ends.\\n\\nRecommended: 3. Use 1 on a slow computer.\\n\\nPerformance cost: grows with this number.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "diffractionRange": "Bending Range",
-      "diffractionRange.description": "Sounds further away than this are not checked for ways round obstacles; they only get the through-the-wall sound.\\n\\nRecommended: 32 blocks.\\n\\nPerformance cost: higher values mean more searching.",
+      "diffractionRange.description": "Sounds further away than this are not checked for ways round obstacles; they only get the through-the-wall sound.\\n\\nRecommended: 32 blocks.\\n\\nPerformance cost: higher values mean more searching.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
       "diffractionSearchBudget": "Search Effort",
-      "diffractionSearchBudget.description": "How hard the mod looks for a way round before giving up. Higher finds routes through longer, twistier tunnels.\\n\\nRecommended: 6000. Lower it if sealed rooms cause stutter.\\n\\nPerformance cost: medium when a sound is fully sealed in."
+      "diffractionSearchBudget.description": "How hard the mod looks for a way round before giving up. Higher finds routes through longer, twistier tunnels.\\n\\nRecommended: 6000. Lower it if sealed rooms cause stutter.\\n\\nPerformance cost: medium when a sound is fully sealed in.\\n\\nOnly used when Quality (Quick Setup tab) is set to Custom.",
+      "qualityPreset": "Quality",
+      "qualityPreset.description": "How much work the mod does. Higher quality gives steadier reverb and follows you more quickly, and uses more of your processor.\\n\\nLow: 100 rays, 2 bounces, 1 route round obstacles. For slower computers.\\n\\nMedium: 200 rays, 3 bounces, 3 routes.\\n\\nHigh: 400 rays, 4 bounces, 3 routes, sounds re-checked twice as often.\\n\\nCustom: uses the values you set on the Performance tab.\\n\\nRecommended: Medium."
     }
   }
 }

@@ -146,7 +146,7 @@ public class RaycastingHelper {
         try {
 
             playerEyePos = player.getEyePosition();
-            double maxTotalDistance = 16.0 * Config.getInstance().maxRayLength * Config.getInstance().raysBounced; // Max total distance after all bounces
+            double maxTotalDistance = 16.0 * Config.getInstance().rayLength() * Config.getInstance().bounces(); // Max total distance after all bounces
 
             Minecraft client = Minecraft.getInstance();
             if (client == null || client.getSoundManager() == null) {
@@ -155,9 +155,9 @@ public class RaycastingHelper {
 
 
             // Generate ray directions
-            if (Config.getInstance().raysCast != lastRaysCast)
+            if (Config.getInstance().rays() != lastRaysCast)
                 rayDirections = RaycastingHelper.generateRayDirections();
-            lastRaysCast = Config.getInstance().raysCast;
+            lastRaysCast = Config.getInstance().rays();
 
             if (processAndPlayAveragedSounds(world,player,playerEyePos,new ArrayList<>(Arrays.asList(rayDirections)), maxTotalDistance,client) == -1)
                 return;
@@ -302,7 +302,7 @@ public class RaycastingHelper {
                 attenuationMultiplier = 1.0f / (float) Math.max(avgData.averageDistance,0.01);
             }
             else // maintain old behavior if someone still wants it
-                confidenceMultiplier = (float) avgData.totalWeight / Config.getInstance().raysCast * Config.getInstance().raysBounced;
+                confidenceMultiplier = (float) avgData.totalWeight / Config.getInstance().rays() * Config.getInstance().bounces();
             float adjustedVolume = baseVolume * volumeMultiplier * confidenceMultiplier * attenuationMultiplier;
 
             // Calculate adjusted pitch
@@ -372,7 +372,7 @@ public class RaycastingHelper {
                 attenuationMultiplier = 1.0f / (float) Math.max(avgData.averageDistance,0.01);
             }
             else // maintain old behavior if someone still wants it
-                confidenceMultiplier = (float) avgData.totalWeight / Config.getInstance().raysCast * Config.getInstance().raysBounced;
+                confidenceMultiplier = (float) avgData.totalWeight / Config.getInstance().rays() * Config.getInstance().bounces();
             float permeationIndex = (float) avgData.averageMuffle;
 
             // Shortcut Directionality Logic
@@ -561,8 +561,8 @@ public class RaycastingHelper {
         else
             castGreenRay(world, player, startPos, sQ, tQ, pTQ, totalDistanceTraveled, initialDirection, -1);
 
-        for (int bounce = 0; bounce <= Config.getInstance().raysBounced && remainingDistance > 0; bounce++) {
-            double segmentDistance = Math.min(16.0 * Config.getInstance().maxRayLength, remainingDistance);
+        for (int bounce = 0; bounce <= Config.getInstance().bounces() && remainingDistance > 0; bounce++) {
+            double segmentDistance = Math.min(16.0 * Config.getInstance().rayLength(), remainingDistance);
             Vec3 segmentEnd = currentPos.add(currentDirection.scale(segmentDistance));
 
             ClipContext raycastContext = new ClipContext(
@@ -900,7 +900,7 @@ public class RaycastingHelper {
             Vec3 entityCenter = soundEntity.position;
             double distanceToEntity = currentPos.distanceTo(entityCenter);
 
-            if (distanceToEntity + currentDistance > Config.getInstance().maxRayLength * 16)
+            if (distanceToEntity + currentDistance > Config.getInstance().rayLength() * 16)
                 continue;
 
             double blockCount = countBlocksBetween(world, currentPos, entityCenter, player);
@@ -931,7 +931,7 @@ public class RaycastingHelper {
             Vec3 entityCenter = soundEntity.getOriginalPosition();
             double distanceToEntity = currentPos.distanceTo(entityCenter);
 
-            if (distanceToEntity + currentDistance > Config.getInstance().maxRayLength * 16)
+            if (distanceToEntity + currentDistance > Config.getInstance().rayLength() * 16)
                 continue;
 
             double blockCount = countBlocksBetween(world, currentPos, entityCenter, player);
@@ -1109,7 +1109,7 @@ public class RaycastingHelper {
     public static Vec3[] generateRayDirections() {
         // Generate directions in a roughly spherical pattern
         // Using fibonacci sphere for even distribution
-        int numRays = Config.getInstance().raysCast;
+        int numRays = Config.getInstance().rays();
         Vec3[] directions = new Vec3[numRays];
 
         double goldenRatio = (1 + Math.sqrt(5)) / 2;

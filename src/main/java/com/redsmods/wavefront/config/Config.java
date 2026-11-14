@@ -42,12 +42,60 @@ public class Config {
         return permeation || wavePhysics;
     }
 
-    // === Wavefront sound physics ===
-    @AutoGen(category = "physics", group = "main")
+    // ----- Quality presets -----
+    // Low, Medium and High replace the Performance tab's values; Custom uses them as set.
+
+    public int rays() {
+        return switch (qualityPreset) { case LOW -> 100; case MEDIUM -> 200; case HIGH -> 400; default -> raysCast; };
+    }
+
+    public int bounces() {
+        return switch (qualityPreset) { case LOW -> 2; case MEDIUM -> 3; case HIGH -> 4; default -> raysBounced; };
+    }
+
+    public int rayLength() {
+        return switch (qualityPreset) { case LOW -> 3; case MEDIUM -> 4; case HIGH -> 4; default -> maxRayLength; };
+    }
+
+    public int updateTicks() {
+        return switch (qualityPreset) { case LOW -> 10; case MEDIUM -> 10; case HIGH -> 5; default -> tickRate; };
+    }
+
+    public int routes() {
+        return switch (qualityPreset) { case LOW -> 1; case MEDIUM -> 3; case HIGH -> 3; default -> diffractionRoutes; };
+    }
+
+    public int bendRange() {
+        return switch (qualityPreset) { case LOW -> 24; case MEDIUM -> 32; case HIGH -> 48; default -> diffractionRange; };
+    }
+
+    public int searchBudget() {
+        return switch (qualityPreset) { case LOW -> 3000; case MEDIUM -> 6000; case HIGH -> 10000; default -> diffractionSearchBudget; };
+    }
+
+    // ===== Quick Setup tab =====
+    @AutoGen(category = "quick", group = "main")
+    @EnumCycler
+    @CustomDescription("yacl3.config.wavefront:config.qualityPreset.description")
+    @SerialEntry public QualityPreset qualityPreset = QualityPreset.MEDIUM;
+
+    @AutoGen(category = "quick", group = "main")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
     @CustomDescription("yacl3.config.wavefront:config.wavePhysics.description")
     @SerialEntry public boolean wavePhysics = true;
 
+    @AutoGen(category = "quick", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.reverb.description")
+    @SerialEntry public boolean reverb = true;
+
+    @AutoGen(category = "quick", group = "main")
+    @FloatSlider(min = 0, max = 10, step = 0.1f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.volumeMultiplier.description")
+    @SerialEntry public float volumeMultiplier = 1;
+
+    // ===== Walls and Corners tab =====
     @AutoGen(category = "physics", group = "walls")
     @FloatSlider(min = 0, max = 2, step = 0.05f)
     @FormatTranslation("wavefront.config.unit.multiplier")
@@ -65,154 +113,81 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.diffractionStrength.description")
     @SerialEntry public float diffractionStrength = 1.0f;
 
-    @AutoGen(category = "physics", group = "bending")
-    @IntSlider(min = 1, max = 4, step = 1)
-    @CustomDescription("yacl3.config.wavefront:config.diffractionRoutes.description")
-    @SerialEntry public int diffractionRoutes = 3;
+    // ===== Voice Chat tab =====
+    @AutoGen(category = "voicechat", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.voicechatMuffle.description")
+    @SerialEntry public boolean voicechatMuffle = true;
 
-    @AutoGen(category = "physics", group = "bending")
-    @IntSlider(min = 8, max = 64, step = 4)
-    @FormatTranslation("wavefront.config.unit.blocks")
-    @CustomDescription("yacl3.config.wavefront:config.diffractionRange.description")
-    @SerialEntry public int diffractionRange = 32;
+    @AutoGen(category = "voicechat", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.voicechatMuffleVolume.description")
+    @SerialEntry public boolean voicechatMuffleVolume = true;
 
-    @AutoGen(category = "physics", group = "bending")
-    @IntSlider(min = 500, max = 20000, step = 500)
-    @FormatTranslation("wavefront.config.unit.steps")
-    @CustomDescription("yacl3.config.wavefront:config.diffractionSearchBudget.description")
-    @SerialEntry public int diffractionSearchBudget = 6000;
+    @AutoGen(category = "voicechat", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.voicechatReverb.description")
+    @SerialEntry public boolean voicechatReverb = true;
 
-    // Original Sound Physics Perfected settings
-    @AutoGen(category = "general", group = "main")
+    @AutoGen(category = "voicechat", group = "main")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.voicechatReverbSelf.description")
+    @SerialEntry public boolean voicechatReverbSelf = false;
+
+    // ===== Performance tab (used when Quality is Custom) =====
+    @AutoGen(category = "performance", group = "rays")
     @IntField(min = 0, max = 2000)
     @FormatTranslation("wavefront.config.unit.rays")
     @CustomDescription("yacl3.config.wavefront:config.raysCast.description")
     @SerialEntry public int raysCast = 200;
 
-    @AutoGen(category = "general", group = "main")
+    @AutoGen(category = "performance", group = "rays")
     @IntSlider(min = 0, max = 16, step = 1)
     @FormatTranslation("wavefront.config.unit.rays")
     @CustomDescription("yacl3.config.wavefront:config.raysBounced.description")
     @SerialEntry public int raysBounced = 3;
 
-    @AutoGen(category = "general", group = "main")
+    @AutoGen(category = "performance", group = "rays")
     @IntSlider(min = 2, max = 16, step = 1)
     @FormatTranslation("wavefront.config.unit.chunks")
     @CustomDescription("yacl3.config.wavefront:config.maxRayLength.description")
     @SerialEntry public int maxRayLength = 4; // chunks
 
-    @AutoGen(category = "general", group = "main")
-    @IntSlider(min = -1, max = 1000, step = 10)
-    @FormatTranslation("wavefront.config.unit.blocks")
-    @CustomDescription("yacl3.config.wavefront:config.procRange.description")
-    @SerialEntry public int procRange = 200; // blocks
-
-    @AutoGen(category = "general", group = "main")
-    @FloatSlider(min = 0, max = 10, step = 0.1f)
-    @FormatTranslation("wavefront.config.unit.multiplier")
-    @CustomDescription("yacl3.config.wavefront:config.volumeMultiplier.description")
-    @SerialEntry public float volumeMultiplier = 1;
-
-    @AutoGen(category = "general", group = "main")
+    @AutoGen(category = "performance", group = "updates")
     @IntSlider(min = 0, max = 20, step = 1)
     @FormatTranslation("wavefront.config.unit.ticks")
     @CustomDescription("yacl3.config.wavefront:config.tickRate.description")
     @SerialEntry public int tickRate = 10; // once every 2 ticks bc i want poor people's pcs to burn
 
-    @AutoGen(category = "general", group = "permeation")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.permeation.description")
-    @SerialEntry public boolean permeation = true;
-
-    @AutoGen(category = "general", group = "permeation")
-    @DoubleSlider(min = 0.01, max = 2, step = 0.05)
+    @AutoGen(category = "performance", group = "updates")
+    @IntSlider(min = -1, max = 1000, step = 10)
     @FormatTranslation("wavefront.config.unit.blocks")
-    @CustomDescription("yacl3.config.wavefront:config.permeationStepSize.description")
-    @SerialEntry public double permeationStepSize = 0.0625; // changed to 1/16 of a block bc u don't *need* 0.01 precision lets be so fr
+    @CustomDescription("yacl3.config.wavefront:config.procRange.description")
+    @SerialEntry public int procRange = 200; // blocks
 
-    @AutoGen(category = "general", group = "permeation")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.useExplosionResistance.description")
-    @SerialEntry public boolean useExplosionResistance = true;
-
-    @AutoGen(category = "general", group = "main")
-    @EnumCycler
-    @CustomDescription("yacl3.config.wavefront:config.attenuationType.description")
-    @SerialEntry public RedsAttenuationType attenuationType = RedsAttenuationType.VERCIDIUM_LINEAR;
-
-    @AutoGen(category = "general", group = "permeation")
-    @DoubleSlider(min = 1, max = 10, step = 0.1)
-    @FormatTranslation("wavefront.config.unit.blocks")
-    @CustomDescription("yacl3.config.wavefront:config.maxBlocksPermeated.description")
-    @SerialEntry public double maxBlocksPermeated = 3;
-
-    @AutoGen(category = "general", group = "permeation")
-    @DoubleSlider(min = 0.001, max = 1, step = 0.01)
-    @FormatTranslation("wavefront.config.unit.multiplier")
-    @CustomDescription("yacl3.config.wavefront:config.permeationAbsorption.description")
-    @SerialEntry public double permeationAbsorption = 0.4;
-
-    @AutoGen(category = "general", group = "permeation")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.barrierAsAir.description")
-    @SerialEntry public boolean barrierAsAir = true;
-
-    @AutoGen(category = "general", group = "permeation")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.disableFXOnUI.description")
-    @SerialEntry public boolean disableFXOnUI = false;
-
-    @AutoGen(category = "general", group = "main")
-    @DoubleSlider(min = 0.001, max = 1, step = 0.01)
-    @CustomDescription("yacl3.config.wavefront:config.bounceAbsorptionMultiplier.description")
-    @SerialEntry public double bounceAbsorptionMultiplier = 0.9;
-
-    @AutoGen(category = "general", group = "main")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.shortcutDirectionality.description")
-    @SerialEntry public boolean shortcutDirectionality = true; // bugs are now fixed.
-    @AutoGen(category = "general", group = "main")
+    @AutoGen(category = "performance", group = "updates")
     @IntField(min = 0)
     @CustomDescription("yacl3.config.wavefront:config.maxSounds.description")
     @SerialEntry public int maxSounds = 100;
 
-    public static class StringValueFactory implements ListGroup.ValueFactory<String> {
-        @Override
-        public String provideNewValue() {
-            return ""; // Default value for new entries
-        }
-    }
+    @AutoGen(category = "performance", group = "bending")
+    @IntSlider(min = 1, max = 4, step = 1)
+    @CustomDescription("yacl3.config.wavefront:config.diffractionRoutes.description")
+    @SerialEntry public int diffractionRoutes = 3;
 
-    public static class StringControllerFactory implements ListGroup.ControllerFactory<String> {
-        @Override
-        public ControllerBuilder<String> createController(ListGroup listGroup, ConfigField<List<String>> configField, OptionAccess optionAccess, Option<String> option) {
-            return StringControllerBuilder.create(option);
-        }
-    }
+    @AutoGen(category = "performance", group = "bending")
+    @IntSlider(min = 8, max = 64, step = 4)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.diffractionRange.description")
+    @SerialEntry public int diffractionRange = 32;
 
-    @AutoGen(category = "blacklist", group = "main")
-    @EnumCycler
-    @CustomDescription("yacl3.config.wavefront:config.debug.description")
-    @SerialEntry public DebugType debug = DebugType.OFF;
+    @AutoGen(category = "performance", group = "bending")
+    @IntSlider(min = 500, max = 20000, step = 500)
+    @FormatTranslation("wavefront.config.unit.steps")
+    @CustomDescription("yacl3.config.wavefront:config.diffractionSearchBudget.description")
+    @SerialEntry public int diffractionSearchBudget = 6000;
 
-    @AutoGen(category = "blacklist")
-    @ListGroup(valueFactory = StringValueFactory.class, controllerFactory = StringControllerFactory.class)
-    @CustomDescription("yacl3.config.wavefront:config.soundBlacklist.description")
-    @SerialEntry public List<String> soundBlacklist = new ArrayList<>();
-
-    @AutoGen(category = "blacklist")
-    @ListGroup(valueFactory = StringValueFactory.class, controllerFactory = StringControllerFactory.class)
-    @CustomDescription("yacl3.config.wavefront:config.soundTickBlacklist.description")
-    @SerialEntry public List<String> soundTickBlacklist = new ArrayList<>();
-
-    // === REVERB TUNING CONSTANTS ===
-    // Global Controls
-
-    @AutoGen(category = "reverb_tuning", group = "main")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.reverb.description")
-    @SerialEntry public boolean reverb = true;
-
+    // ===== Reverb Tuning tab (from Sound Physics Perfected) =====
     @AutoGen(category = "reverb_tuning", group = "main")
     @EnumCycler
     @CustomDescription("yacl3.config.wavefront:config.reverbTuning.description")
@@ -258,7 +233,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.largeRoomEmphasis.description")
     @SerialEntry public float largeRoomEmphasis = 1.0f;
 
-    // Distance & Attenuation
     @AutoGen(category = "reverb_tuning", group = "distance_and_attenuation")
     @FloatField(min = 0, max = 10000)
     @CustomDescription("yacl3.config.wavefront:config.distanceAttenuationLinear.description")
@@ -279,7 +253,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.minAirAbsorption.description")
     @SerialEntry public float minAirAbsorption = 0.1f;
 
-    // Room Size & Volume
     @AutoGen(category = "reverb_tuning", group = "room_size_and_volume")
     @FloatField(min = 0, max = 10000)
     @FormatTranslation("wavefront.config.unit.multiplier")
@@ -297,7 +270,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.roomComplexityDivisor.description")
     @SerialEntry public float roomComplexityDivisor = 2.0f;
 
-    // Reverb Timing
     @AutoGen(category = "reverb_tuning", group = "reverb_timing")
     @FloatField(min = 0, max = 10000)
     @FormatTranslation("wavefront.config.unit.multiplier")
@@ -310,7 +282,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.soundSpeed.description")
     @SerialEntry public float soundSpeed = 343.0f;
 
-    // Gain & Strength
     @AutoGen(category = "reverb_tuning", group = "gain_and_strength")
     @FloatField(min = 0, max = 10000)
     @CustomDescription("yacl3.config.wavefront:config.baseReverbGain.description")
@@ -332,7 +303,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.sendFilterHfReduction.description")
     @SerialEntry public float sendFilterHfReduction = 0.7f;
 
-    // Diffusion & Density
     @AutoGen(category = "reverb_tuning", group = "diffusion")
     @FloatField(min = 0, max = 1)
     @CustomDescription("yacl3.config.wavefront:config.minDiffusion.description")
@@ -354,7 +324,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.densityRoomSizeFactor.description")
     @SerialEntry public float densityRoomSizeFactor = 100.0f;
 
-    // Frequency Response
     @AutoGen(category = "reverb_tuning", group = "frequency_response")
     @FloatField(min = 0, max = 10000)
     @CustomDescription("yacl3.config.wavefront:config.dynamicAbsorptionLfFactor.description")
@@ -371,7 +340,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.outdoorHfLeak.description")
     @SerialEntry public float outdoorHfLeak = 0.7f;
 
-    // Echo & Modulation
     @AutoGen(category = "reverb_tuning", group = "echo")
     @FloatField(min = 0, max = 10000)
     @FormatTranslation("wavefront.config.unit.multiplier")
@@ -396,7 +364,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.modulationDepthMultiplier.description")
     @SerialEntry public float modulationDepthMultiplier = 0.1f;
 
-    // Frequency References
     @AutoGen(category = "reverb_tuning", group = "frequency_references")
     @FloatField(min = 0, max = 10000)
     @FormatTranslation("wavefront.config.unit.hertz")
@@ -421,14 +388,12 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.lfRoomSizeFactor.description")
     @SerialEntry public float lfRoomSizeFactor = 2.0f;
 
-    // Rolloff
     @AutoGen(category = "reverb_tuning", group = "rolloff")
     @FloatField(min = 0, max = 10000)
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.roomRolloffSizeFactor.description")
     @SerialEntry public float roomRolloffSizeFactor = 50.0f;
 
-    // RT60 Calculation
     @AutoGen(category = "reverb_tuning", group = "rt60")
     @FloatField(min = 0, max = 10000)
     @CustomDescription("yacl3.config.wavefront:config.rt60SabineConstant.description")
@@ -439,7 +404,6 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.minTotalAbsorption.description")
     @SerialEntry public float minTotalAbsorption = 0.1f;
 
-    // Interpolation Weights
     @AutoGen(category = "reverb_tuning", group = "interpolation_weights")
     @FloatField(min = 0, max = 10000)
     @CustomDescription("yacl3.config.wavefront:config.diffusionComplexityWeight.description")
@@ -455,23 +419,88 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.diffusionReverbWeight.description")
     @SerialEntry public float diffusionReverbWeight = 1.0f;
 
-    @AutoGen(category = "voicechat", group = "main")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.voicechatReverb.description")
-    @SerialEntry public boolean voicechatReverb = true;
+    // ===== Reverb Tuning: bounce loss =====
+    @AutoGen(category = "reverb_tuning", group = "global")
+    @DoubleSlider(min = 0.001, max = 1, step = 0.01)
+    @CustomDescription("yacl3.config.wavefront:config.bounceAbsorptionMultiplier.description")
+    @SerialEntry public double bounceAbsorptionMultiplier = 0.9;
 
-    @AutoGen(category = "voicechat", group = "main")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.voicechatReverbSelf.description")
-    @SerialEntry public boolean voicechatReverbSelf = false;
+    // ===== Advanced tab =====
+    public static class StringValueFactory implements ListGroup.ValueFactory<String> {
+        @Override
+        public String provideNewValue() {
+            return ""; // Default value for new entries
+        }
+    }
 
-    @AutoGen(category = "voicechat", group = "main")
-    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.voicechatMuffle.description")
-    @SerialEntry public boolean voicechatMuffle = true;
+    public static class StringControllerFactory implements ListGroup.ControllerFactory<String> {
+        @Override
+        public ControllerBuilder<String> createController(ListGroup listGroup, ConfigField<List<String>> configField, OptionAccess optionAccess, Option<String> option) {
+            return StringControllerBuilder.create(option);
+        }
+    }
 
-    @AutoGen(category = "voicechat", group = "main")
+    // ===== Advanced: tools, lists and classic mode =====
+    @AutoGen(category = "advanced", group = "tools")
+    @EnumCycler
+    @CustomDescription("yacl3.config.wavefront:config.debug.description")
+    @SerialEntry public DebugType debug = DebugType.OFF;
+
+    @AutoGen(category = "advanced", group = "tools")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
-    @CustomDescription("yacl3.config.wavefront:config.voicechatMuffleVolume.description")
-    @SerialEntry public boolean voicechatMuffleVolume = true;
+    @CustomDescription("yacl3.config.wavefront:config.disableFXOnUI.description")
+    @SerialEntry public boolean disableFXOnUI = false;
+
+    @AutoGen(category = "advanced")
+    @ListGroup(valueFactory = StringValueFactory.class, controllerFactory = StringControllerFactory.class)
+    @CustomDescription("yacl3.config.wavefront:config.soundBlacklist.description")
+    @SerialEntry public List<String> soundBlacklist = new ArrayList<>();
+
+    @AutoGen(category = "advanced")
+    @ListGroup(valueFactory = StringValueFactory.class, controllerFactory = StringControllerFactory.class)
+    @CustomDescription("yacl3.config.wavefront:config.soundTickBlacklist.description")
+    @SerialEntry public List<String> soundTickBlacklist = new ArrayList<>();
+
+    @AutoGen(category = "advanced", group = "classic")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.permeation.description")
+    @SerialEntry public boolean permeation = true;
+
+    @AutoGen(category = "advanced", group = "classic")
+    @EnumCycler
+    @CustomDescription("yacl3.config.wavefront:config.attenuationType.description")
+    @SerialEntry public RedsAttenuationType attenuationType = RedsAttenuationType.VERCIDIUM_LINEAR;
+
+    @AutoGen(category = "advanced", group = "classic")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.shortcutDirectionality.description")
+    @SerialEntry public boolean shortcutDirectionality = true; // bugs are now fixed.
+
+    @AutoGen(category = "advanced", group = "classic")
+    @DoubleSlider(min = 0.01, max = 2, step = 0.05)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.permeationStepSize.description")
+    @SerialEntry public double permeationStepSize = 0.0625; // changed to 1/16 of a block bc u don't *need* 0.01 precision lets be so fr
+
+    @AutoGen(category = "advanced", group = "classic")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.useExplosionResistance.description")
+    @SerialEntry public boolean useExplosionResistance = true;
+
+    @AutoGen(category = "advanced", group = "classic")
+    @DoubleSlider(min = 1, max = 10, step = 0.1)
+    @FormatTranslation("wavefront.config.unit.blocks")
+    @CustomDescription("yacl3.config.wavefront:config.maxBlocksPermeated.description")
+    @SerialEntry public double maxBlocksPermeated = 3;
+
+    @AutoGen(category = "advanced", group = "classic")
+    @DoubleSlider(min = 0.001, max = 1, step = 0.01)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.permeationAbsorption.description")
+    @SerialEntry public double permeationAbsorption = 0.4;
+
+    @AutoGen(category = "advanced", group = "classic")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.barrierAsAir.description")
+    @SerialEntry public boolean barrierAsAir = true;
 }

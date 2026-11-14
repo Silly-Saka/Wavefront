@@ -72,8 +72,8 @@ public class RedTickableInstance implements TickableSoundInstance {
         }
 
         tickCount++;
-        if (stopped || Config.getInstance().tickRate == 0) return; // DONE or ticking sounds is off
-        if (tickCount % Config.getInstance().tickRate == 0) // only update once every .1 second
+        if (stopped || Config.getInstance().updateTicks() == 0) return; // DONE or ticking sounds is off
+        if (tickCount % Config.getInstance().updateTicks() == 0) // only update once every .1 second
             if (!RaycastingHelper.tickQueue.contains(this))
                 RaycastingHelper.tickQueue.add(this);
         updatePos();
@@ -122,7 +122,7 @@ public class RedTickableInstance implements TickableSoundInstance {
         double maxSpeed = 17.15; // m per tick, speed of sound
 
         // If we're already at the target or very close, set position directly
-        if (distance <= 0.001 || distance > maxSpeed * Config.getInstance().tickRate) {
+        if (distance <= 0.001 || distance > maxSpeed * Config.getInstance().updateTicks()) {
             x = targetPosition.x();
             y = targetPosition.y();
             z = targetPosition.z();
@@ -154,7 +154,7 @@ public class RedTickableInstance implements TickableSoundInstance {
         }
 
         // Exponential smoothing for natural audio feel
-        float ticksToTarget = Config.getInstance().tickRate; // number of ticks to reach target
+        float ticksToTarget = Config.getInstance().updateTicks(); // number of ticks to reach target
         float deltaTime = 1.0f / 20.0f; // time per tick (20 ticks per second)
         float timeToTarget = ticksToTarget * deltaTime; // convert ticks to seconds
 
