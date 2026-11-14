@@ -29,8 +29,6 @@ Settings are available through Mod Menu.
 
 There are four quality presets: Performance, Balanced, Realism, and Overkill. Individual settings can also be changed manually.
 
-If you prefer the original Sound Physics Perfected behaviour, you can disable **Sound Physics** under the Walls settings.
-
 There are also debug options for displaying sound paths and the calculated bass field in-game.
 
 ## Current state
