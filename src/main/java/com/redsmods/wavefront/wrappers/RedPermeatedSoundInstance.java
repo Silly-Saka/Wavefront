@@ -159,8 +159,9 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         if (!sourceSet || !AL10.alIsSource(id)) return;
         if (bandMode) {
             fxHandler.applyBandGainsToSource(id, gain, gainLF, gainHF);
+            // Sent again every tick while there is any: its fall-off with distance has to follow the listener.
             float wanted = fixedEcho ? 0f : bassSend;
-            if (wanted != sentBassSend) {
+            if (wanted > 0.001f || sentBassSend > 0.001f) {
                 fxHandler.applyBassSendToSource(id, wanted);
                 sentBassSend = wanted;
             }

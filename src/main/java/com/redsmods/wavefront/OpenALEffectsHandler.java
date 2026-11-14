@@ -604,12 +604,36 @@ public class OpenALEffectsHandler {
                 AL11.alSource3i(sourceId, EXTEfx.AL_AUXILIARY_SEND_FILTER, EXTEfx.AL_EFFECTSLOT_NULL, 1, EXTEfx.AL_FILTER_NULL);
                 return;
             }
+            send *= distanceFallOff(sourceId);
             EXTEfx.alFilterf(bassSendFilter, EXTEfx.AL_LOWPASS_GAIN, clamp(send / (BASS_LIFT * BASS_SLOT_GAIN), 0.0f, 1.0f));
             EXTEfx.alFilterf(bassSendFilter, EXTEfx.AL_LOWPASS_GAINHF, 0.0f);
             AL11.alSource3i(sourceId, EXTEfx.AL_AUXILIARY_SEND_FILTER, bassSlot, 1, bassSendFilter);
         } catch (Exception e) {
             // A failed update must never interrupt audio.
         }
+    }
+
+    /**
+     * How much OpenAL's own fall-off with distance is taking off this sound right now (1 = nothing).
+     * OpenAL applies that fall-off to the sound itself but not to what it sends to an effect, so
+     * the bass channel has to apply it. Sounds whose loudness the mod sets itself report 1.
+     */
+    private static float distanceFallOff(int sourceId) {
+        float max = AL11.alGetSourcef(sourceId, AL11.AL_MAX_DISTANCE);
+        float reference = AL11.alGetSourcef(sourceId, AL11.AL_REFERENCE_DISTANCE);
+        if (!(max < 1.0e6f) || max <= reference) return 1.0f; // no fall-off set on this sound
+        float[] x = new float[1], y = new float[1], z = new float[1];
+        AL11.alGetSource3f(sourceId, AL11.AL_POSITION, x, y, z);
+        float dx = x[0], dy = y[0], dz = z[0];
+        if (AL11.alGetSourcei(sourceId, AL11.AL_SOURCE_RELATIVE) != AL11.AL_TRUE) {
+            AL11.alGetListener3f(AL11.AL_POSITION, x, y, z);
+            dx -= x[0];
+            dy -= y[0];
+            dz -= z[0];
+        }
+        float distance = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        float rolloff = AL11.alGetSourcef(sourceId, AL11.AL_ROLLOFF_FACTOR);
+        return clamp(1.0f - rolloff * (distance - reference) / (max - reference), 0.0f, 1.0f);
     }
 
     /**
@@ -640,8 +664,6 @@ public class OpenALEffectsHandler {
         EXTEfx.alEffectf(effect, EXTEfx.AL_EQUALIZER_HIGH_CUTOFF, 4000.0f);
         EXTEfx.alAuxiliaryEffectSloti(slot, EXTEfx.AL_EFFECTSLOT_EFFECT, effect);
         EXTEfx.alAuxiliaryEffectSlotf(slot, EXTEfx.AL_EFFECTSLOT_GAIN, BASS_SLOT_GAIN);
-        // With this off, the bass channel fades with distance exactly as the sound itself does.
-        EXTEfx.alAuxiliaryEffectSloti(slot, EXTEfx.AL_EFFECTSLOT_AUXILIARY_SEND_AUTO, AL11.AL_FALSE);
         EXTEfx.alFilteri(filter, EXTEfx.AL_FILTER_TYPE, EXTEfx.AL_FILTER_LOWPASS);
         if (AL11.alGetError() != AL11.AL_NO_ERROR) {
             // This audio device has no equaliser effect: go without the bass channel.
