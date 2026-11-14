@@ -5,6 +5,9 @@ import com.redsmods.wavefront.config.Config;
 import dev.isxander.yacl3.platform.YACLPlatform;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
@@ -142,11 +145,9 @@ public final class AcousticSolver {
         if (material == null) {
             // A block the database has never heard of (usually from another mod): try its tags,
             // then guess from the sound it makes when you walk on it.
-            Map<String, String> tags = db.tagFallbacks();
-            Map<String, Boolean> has = new HashMap<>();
-            state.getTags().forEach(tag -> has.put(tag.location().toString(), Boolean.TRUE));
-            for (Map.Entry<String, String> e : tags.entrySet()) {
-                if (has.containsKey(e.getKey())) {
+            for (Map.Entry<String, String> e : db.tagFallbacks().entrySet()) {
+                Identifier tagId = Identifier.tryParse(e.getKey());
+                if (tagId != null && state.is(TagKey.create(Registries.BLOCK, tagId))) {
                     material = db.material(e.getValue());
                     break;
                 }
