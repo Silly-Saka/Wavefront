@@ -19,11 +19,17 @@ public final class Propagation {
         public final double length;
         /** The point the listener hears it arrive from. */
         public final double[] from;
+        /** Travel time in seconds. Starts out as the time through air; water and lava change it. */
+        public double seconds;
+        /** How much of the path is in air, in blocks. Air absorption acts on this part only. */
+        public double airLength;
 
         public Arrival(double[] energy, double length, double[] from) {
             this.energy = energy;
             this.length = Math.max(length, 0.1);
             this.from = from;
+            this.seconds = this.length / Bands.SPEED_OF_SOUND;
+            this.airLength = this.length;
         }
     }
 
@@ -38,6 +44,8 @@ public final class Propagation {
         public final double gainLF;
         /** Energy per band relative to an unobstructed sound at the apparent distance. */
         public final double[] bandEnergy;
+        /** Travel time in seconds, averaged over the arrivals by loudness. */
+        public double seconds;
 
         Result(double[] apparentPosition, double gain, double gainLF, double gainHF, double[] bandEnergy) {
             this.apparentPosition = apparentPosition;
@@ -90,7 +98,7 @@ public final class Propagation {
         }
 
         // Direction: loudness-weighted average of where each arrival comes from.
-        double dx = 0, dy = 0, dz = 0, distance = 0;
+        double dx = 0, dy = 0, dz = 0, distance = 0, seconds = 0;
         for (int i = 0; i < arrivals.size(); i++) {
             Arrival a = arrivals.get(i);
             double ux = a.from[0] - listener[0], uy = a.from[1] - listener[1], uz = a.from[2] - listener[2];
@@ -101,6 +109,7 @@ public final class Propagation {
                 dz += weight[i] * uz / len;
             }
             distance += weight[i] * a.length;
+            seconds += weight[i] * a.seconds;
         }
         distance /= total;
         double dirLen = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -132,7 +141,9 @@ public final class Propagation {
         double gain = Math.sqrt(body);
         double gainLF = gain < 1e-5 ? 0 : Math.min(1.0, Math.sqrt(bass) / gain);
         double gainHF = gain < 1e-5 ? 0 : Math.min(1.0, Math.sqrt(treble) / gain);
-        return new Result(apparent, Math.min(1.0, gain), gainLF, gainHF, bandEnergy);
+        Result result = new Result(apparent, Math.min(1.0, gain), gainLF, gainHF, bandEnergy);
+        result.seconds = seconds / total;
+        return result;
     }
 
     /** Convenience for the common case of an unobstructed sound. */

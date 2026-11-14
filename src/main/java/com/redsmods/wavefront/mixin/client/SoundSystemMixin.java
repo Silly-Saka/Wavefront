@@ -126,7 +126,8 @@ public abstract class SoundSystemMixin {
         if(client.level == null || client.player == null) {
             return;
         } // some error occurred
-        wavefront.mc.Doppler.tick(client.player.getEyePosition(), paused);
+        wavefront.mc.Doppler.tick(client.player.getEyePosition(), paused,
+                wavefront.mc.AcousticSolver.speedOfSoundAt(client.level, client.player.getEyePosition()));
         RaycastingHelper.castBouncingRaysAndDetectSFX(client.level, client.player);
         RaycastingHelper.playQueuedObjects();
 

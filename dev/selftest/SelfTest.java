@@ -403,6 +403,36 @@ public class SelfTest {
         check("leaves let nearly everything through, so they reflect under 3 percent", 1 - leafLost[3] < 0.03,
                 String.format("(reflects %.3f, absorption alone would say %.2f)", 1 - leafLost[3], 1 - leaves.absorption[3]));
 
+        // ---------------- water and lava
+        Medium water = db.water(), lava = db.lava();
+        near("water: speed of sound from the database", water.speed, 1447.29, 0.01);
+        near("air to water costs 29.4 dB", Medium.crossingLossDb(Medium.AIR, water), 29.43, 0.02);
+        near("and the same from water to air", Medium.crossingLossDb(water, Medium.AIR), Medium.crossingLossDb(Medium.AIR, water), 1e-9);
+        near("air to lava costs 35.9 dB", Medium.crossingLossDb(Medium.AIR, lava), 35.9, 0.1);
+        near("water to lava costs about 2.2 dB", Medium.crossingLossDb(water, lava), 2.2, 0.1);
+        near("a medium loses nothing meeting itself", Medium.crossingLossDb(water, water), 0, 1e-9);
+        MediaPath dive = new MediaPath();
+        dive.step(Medium.AIR, 10);
+        dive.step(water, 14.4729);
+        near("10 blocks of air then 14.47 of water: one crossing", dive.crossings(), 1, 0);
+        near("its loss is one surface", dive.crossingLossDb(), 29.43, 0.02);
+        near("its travel time is 10/343 + 0.01 s", dive.seconds(), 10 / 343.0 + 0.01, 1e-6);
+        near("only the 10 blocks of air count for air absorption", dive.airLength(), 10, 1e-9);
+        MediaPath pond = new MediaPath();
+        pond.step(Medium.AIR, 5);
+        pond.step(water, 3);
+        pond.step(Medium.AIR, 5);
+        near("in and out of a pond is two crossings, 58.9 dB", pond.crossingLossDb(), 58.85, 0.05);
+        MediaPath swim = new MediaPath();
+        for (int i = 0; i < 40; i++) swim.step(water, 0.25);
+        check("all under water: no crossing, no loss", swim.crossings() == 0 && swim.crossingLossDb() == 0, "");
+        near("10 blocks under water take 6.9 ms, against 29.2 ms in air", swim.seconds() * 1000, 6.91, 0.01);
+        Propagation.Arrival wet = new Propagation.Arrival(new double[]{1, 1, 1, 1, 1, 1, 1, 1}, 10, new double[]{10, 0, 0});
+        near("an arrival starts with its travel time through air", wet.seconds, 10 / 343.0, 1e-9);
+        wet.seconds = swim.seconds();
+        Propagation.Result heard = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, List.of(wet));
+        near("the combined result carries the travel time", heard.seconds, swim.seconds(), 1e-9);
+
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
         check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");

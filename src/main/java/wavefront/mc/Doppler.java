@@ -20,9 +20,11 @@ public final class Doppler {
     private static double vx, vy, vz;
 
     /** Call once per game tick with the listener's position. */
-    public static void tick(Vec3 listener, boolean paused) {
+    public static void tick(Vec3 listener, boolean paused, double speedOfSound) {
         Config cfg = Config.getInstance();
         try {
+            // Under water sound is about four times faster, so the same movement shifts pitch four times less.
+            org.lwjgl.openal.AL11.alSpeedOfSound((float) Math.max(1.0, speedOfSound));
             AL10.alDopplerFactor(cfg.doppler ? Math.max(0f, cfg.dopplerStrength) : 0f);
             if (paused || lastListener == null) {
                 vx = vy = vz = 0;

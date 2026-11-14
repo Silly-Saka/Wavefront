@@ -16,6 +16,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -28,6 +30,8 @@ import wavefront.acoustics.AirAbsorption;
 import wavefront.acoustics.Aperture;
 import wavefront.acoustics.Bands;
 import wavefront.acoustics.Echo;
+import wavefront.acoustics.MediaPath;
+import wavefront.acoustics.Medium;
 import wavefront.acoustics.Occlusion;
 import wavefront.acoustics.PathFinder;
 import wavefront.acoustics.Propagation;
@@ -63,13 +67,16 @@ public final class AcousticSolver {
         public final float gainHF;
         /** Length of the path the sound effectively travelled, in blocks. */
         public final float pathLength;
+        /** How long the sound took to arrive, in seconds. Shorter than the path suggests if part of it was under water. */
+        public final float seconds;
 
-        Solved(Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+        Solved(Vec3 position, float gain, float gainLF, float gainHF, float pathLength, float seconds) {
             this.position = position;
             this.gain = gain;
             this.gainLF = gainLF;
             this.gainHF = gainHF;
             this.pathLength = pathLength;
+            this.seconds = seconds;
         }
     }
 
@@ -188,7 +195,7 @@ public final class AcousticSolver {
     public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source) {
         float straight = (float) listener.distanceTo(source);
         AcousticDatabase db = database();
-        if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, 1f, straight);
+        if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, 1f, straight, straight / 343f);
 
         Config cfg = Config.getInstance();
         db.setWallStrength(cfg.wallStrength);
@@ -198,10 +205,17 @@ public final class AcousticSolver {
         double[] src = {source.x, source.y, source.z};
         List<Propagation.Arrival> arrivals = Propagation.list();
 
-        Occlusion direct = traceDirect(level, db, listener, source, sourceCell);
+        boolean[] touchedFluid = {false};
+        Occlusion direct = traceDirect(level, db, listener, source, sourceCell, touchedFluid);
         double[] throughWalls = direct.energy();
-        arrivals.add(Propagation.straight(src, straight, throughWalls));
-        if (!direct.blocked()) return finish(listener, lis, src, arrivals, cfg); // in plain view: only the air acts on it
+        // Water and lava only need working out when some of it is actually in the way.
+        Medium listenerIn = cfg.water ? mediumAt(level, db, new BlockPos.MutableBlockPos(), listener.x, listener.y, listener.z) : Medium.AIR;
+        boolean wet = cfg.water && (touchedFluid[0] || listenerIn != Medium.AIR
+                || mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z) != Medium.AIR);
+        Propagation.Arrival straightArrival = Propagation.straight(src, straight, throughWalls);
+        if (wet) applyMedia(level, db, cfg, straightArrival, src, lis);
+        arrivals.add(straightArrival);
+        if (!direct.blocked()) return finish(listener, lis, src, arrivals, cfg, listenerIn); // in plain view
 
         // Only look for ways round when the walls take away a meaningful amount (more than about 6 dB).
         double midThrough = (throughWalls[3] + throughWalls[4] + throughWalls[5]) / 3.0;
@@ -220,25 +234,89 @@ public final class AcousticSolver {
                         arrival.energy[b] = Math.pow(arrival.energy[b], cfg.diffractionStrength);
                     }
                 }
+                if (wet) applyMedia(level, db, cfg, arrival, route.points);
                 arrivals.add(arrival);
             }
         }
 
-        return finish(listener, lis, src, arrivals, cfg);
+        return finish(listener, lis, src, arrivals, cfg, listenerIn);
     }
 
     /** Lets the air take its share from every arrival, then merges them into one result. */
-    private static Solved finish(Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals, Config cfg) {
+    private static Solved finish(Vec3 listener, double[] lis, double[] src, List<Propagation.Arrival> arrivals, Config cfg, Medium listenerIn) {
         for (Propagation.Arrival arrival : arrivals) {
-            AirAbsorption.apply(arrival.energy, arrival.length, cfg.airAbsorptionStrength);
+            AirAbsorption.apply(arrival.energy, arrival.airLength, cfg.airAbsorptionStrength);
         }
         Propagation.Result r = Propagation.combine(lis, src, arrivals);
         Vec3 apparent = new Vec3(r.apparentPosition[0], r.apparentPosition[1], r.apparentPosition[2]);
-        return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) r.gainHF, (float) listener.distanceTo(apparent));
+        double gainHF = listenerIn == Medium.AIR ? r.gainHF : r.gainHF * submergedTreble(cfg);
+        return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) gainHF, (float) listener.distanceTo(apparent), (float) r.seconds);
+    }
+
+    // ------------------------------------------------------------------ water and lava
+
+    /** How finely a path is sampled for what it passes through, in blocks. */
+    private static final double MEDIA_STEP = 0.25;
+    private static final int MEDIA_MAX_SAMPLES = 512;
+    /**
+     * Treble lost with the head under water, in dB, at a Submerged Hearing setting of 1. People
+     * hear under water through the bones of the skull, and measured sensitivity is best around
+     * 500 to 1000 Hz instead of 3 to 4 kHz. The size of the cut is an estimate from that shift.
+     */
+    private static final double SUBMERGED_TREBLE_DB = 12.0;
+
+    private static double submergedTreble(Config cfg) {
+        return Math.pow(10.0, -SUBMERGED_TREBLE_DB * Math.max(0f, cfg.submergedHearing) / 20.0);
+    }
+
+    /** What fills this exact point: air, water or lava. The surface of a fluid block counts, not just the block. */
+    private static Medium mediumAt(Level level, AcousticDatabase db, BlockPos.MutableBlockPos pos, double x, double y, double z) {
+        pos.set((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+        FluidState fluid = level.getFluidState(pos);
+        if (fluid.isEmpty()) return Medium.AIR;
+        if (y > pos.getY() + fluid.getHeight(level, pos)) return Medium.AIR; // above the surface, in the same block
+        return fluid.is(FluidTags.LAVA) ? db.lava() : db.water();
+    }
+
+    /** Follows a path point to point, noting what it passes through every quarter block. */
+    private static MediaPath media(Level level, AcousticDatabase db, double[]... points) {
+        MediaPath path = new MediaPath();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int i = 1; i < points.length; i++) {
+            double[] a = points[i - 1], b = points[i];
+            double dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+            double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length < 1e-6) continue;
+            int samples = Math.max(1, Math.min(MEDIA_MAX_SAMPLES, (int) Math.ceil(length / MEDIA_STEP)));
+            for (int k = 0; k < samples; k++) {
+                double t = (k + 0.5) / samples;
+                path.step(mediumAt(level, db, pos, a[0] + dx * t, a[1] + dy * t, a[2] + dz * t), length / samples);
+            }
+        }
+        return path;
+    }
+
+    /** Gives one arrival its travel time through water and lava, and takes off what each surface crossing costs. */
+    private static void applyMedia(Level level, AcousticDatabase db, Config cfg, Propagation.Arrival arrival, double[]... points) {
+        MediaPath path = media(level, db, points);
+        if (path.length() <= 0) return;
+        arrival.seconds = path.seconds();
+        arrival.airLength = path.airLength();
+        double loss = path.crossingLossDb() * Math.max(0f, cfg.waterSurfaceStrength);
+        if (loss <= 0) return;
+        double kept = Bands.dbToEnergy(loss);
+        for (int b = 0; b < Bands.COUNT; b++) arrival.energy[b] *= kept;
+    }
+
+    /** The speed of sound where the listener is, for the Doppler shift: 343 in air, about 1447 under water. */
+    public static double speedOfSoundAt(Level level, Vec3 point) {
+        AcousticDatabase db = database();
+        if (db == null || !Config.getInstance().water) return Medium.AIR.speed;
+        return mediumAt(level, db, new BlockPos.MutableBlockPos(), point.x, point.y, point.z).speed;
     }
 
     /** Adds up what every block on the straight line between listener and source does to the sound. */
-    private static Occlusion traceDirect(Level level, AcousticDatabase db, Vec3 listener, Vec3 source, BlockPos sourceCell) {
+    private static Occlusion traceDirect(Level level, AcousticDatabase db, Vec3 listener, Vec3 source, BlockPos sourceCell, boolean[] touchedFluid) {
         Occlusion occlusion = new Occlusion();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int maxCells = (int) (listener.distanceTo(source) * 3) + 8;
@@ -249,6 +327,7 @@ public final class AcousticSolver {
             pos.set(x, y, z);
             BlockState state = level.getBlockState(pos);
             if (state.isAir()) return true;
+            if (!touchedFluid[0] && !state.getFluidState().isEmpty()) touchedFluid[0] = true;
             BlockInfo info = info(db, state);
             if (info.ignored()) return true;
             VoxelShape shape = state.getCollisionShape(level, pos);
@@ -280,10 +359,13 @@ public final class AcousticSolver {
         /** The point on the surface the sound bounces off. */
         public final Vec3 bounce;
         public final float gain, gainLF, gainHF, pathLength;
+        /** How long the echo takes to arrive, in seconds. */
+        public final float seconds;
         /** Which of the six block directions the surface lies in (0..5). */
         public final int direction;
 
-        EchoResult(int direction, Vec3 bounce, Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
+        EchoResult(int direction, Vec3 bounce, Vec3 position, float gain, float gainLF, float gainHF, float pathLength, float seconds) {
+            this.seconds = seconds;
             this.direction = direction;
             this.bounce = bounce;
             this.position = position;
@@ -323,6 +405,11 @@ public final class AcousticSolver {
         Vec3 middle = new Vec3((listener.x + source.x) / 2, (listener.y + source.y) / 2, (listener.z + source.z) / 2);
         WorldView view = new WorldView(level, player, db, BlockPos.containing(source));
         int range = cfg.echoRange;
+        // Under water the echo is timed and weakened by what its path passes through.
+        Medium listenerIn = cfg.water ? mediumAt(level, db, new BlockPos.MutableBlockPos(), listener.x, listener.y, listener.z) : Medium.AIR;
+        boolean wet = cfg.water && (listenerIn != Medium.AIR
+                || mediumAt(level, db, new BlockPos.MutableBlockPos(), source.x, source.y, source.z) != Medium.AIR);
+        double straightSeconds = wet ? media(level, db, src, lis).seconds() : straight / Medium.AIR.speed;
 
         for (Direction direction : ECHO_DIRECTIONS) {
             int axis = direction.getAxis().ordinal();
@@ -383,17 +470,28 @@ public final class AcousticSolver {
             surface[v] += column % 5 - 2;
             surface[axis] = behind + sign * depths[column];
             AcousticMaterial material = info(db, level.getBlockState(new BlockPos(surface[0], surface[1], surface[2]))).material;
-            double[] energy = Echo.bounceEnergy(reflection, Echo.notReflected(material.absorption, material.realLoss1m), cfg.airAbsorptionStrength);
-            if (cfg.echoRough) {
-                for (int b = 0; b < Bands.COUNT; b++) energy[b] *= Echo.surfaceReturn(b, patch, reflection.cosIncidence);
+            double seconds = reflection.pathLength / Medium.AIR.speed, airShare = 1.0, crossingLoss = 0.0;
+            if (wet) {
+                MediaPath path = media(level, db, src, off, lis);
+                seconds = path.seconds();
+                // Sound is so fast in water that a bounce has to go much further to arrive late enough to be an echo.
+                if (seconds - straightSeconds < 0.05) continue;
+                airShare = path.airLength() / Math.max(1e-6, path.length());
+                crossingLoss = path.crossingLossDb() * Math.max(0f, cfg.waterSurfaceStrength);
+            }
+            double[] energy = Echo.bounceEnergy(reflection, Echo.notReflected(material.absorption, material.realLoss1m), cfg.airAbsorptionStrength * airShare);
+            for (int b = 0; b < Bands.COUNT; b++) {
+                if (cfg.echoRough) energy[b] *= Echo.surfaceReturn(b, patch, reflection.cosIncidence);
+                if (crossingLoss > 0) energy[b] *= Bands.dbToEnergy(crossingLoss);
             }
             Propagation.Result r = Propagation.combine(lis, src, List.of(new Propagation.Arrival(energy, reflection.pathLength, off)));
+            double echoGainHF = listenerIn == Medium.AIR ? r.gainHF : r.gainHF * submergedTreble(cfg);
 
             double amplitude = r.gain * Echo.spreading(straight, reflection.pathLength) * loudness * cfg.echoStrength;
             if (amplitude < 0.01) continue; // more than 40 dB down: not worth a sound channel
             Vec3 bounce = new Vec3(off[0], off[1], off[2]);
             found.add(new EchoResult(direction.ordinal(), bounce, echoPlacementFor(listener, bounce),
-                    (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) r.gainHF, (float) reflection.pathLength));
+                    (float) Math.min(1.0, amplitude), (float) r.gainLF, (float) echoGainHF, (float) reflection.pathLength, (float) seconds));
         }
         found.sort((a, b) -> Float.compare(b.gain, a.gain));
         while (found.size() > cfg.echoCount) found.remove(found.size() - 1);

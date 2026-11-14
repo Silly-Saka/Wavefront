@@ -15,6 +15,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Air absorption.** High notes fade over distance, from the ISO 9613-1 formula.
 - **Doppler shift.** Pitch changes with how fast you and a sound move relative to each other.
 - **Distinct echoes.** Sounds repeat off large flat surfaces that are far enough away, from the direction of the surface. Music and looping sounds echo too. Loops such as a moving minecart pick up new surfaces as they go; a music disc only echoes off the surfaces in range when it started. An optional setting lets uneven surfaces such as natural cliffs echo, weakened by how rough and patchy they are.
+- **Water and lava.** Sound travels about four times faster under water, loses about 29 dB each time it crosses the surface (36 dB for lava), and loses treble to a submerged listener. Doppler shift uses the speed of sound where the listener is.
 - **Voice chat.** Simple Voice Chat voices get the same occlusion and diffraction.
 - **Reverb.** Unchanged from Sound Physics Perfected.
 
@@ -22,11 +23,12 @@ Settings open from Mod Menu: a Quality switch and expandable rows for Walls, Dif
 
 ## What is planned
 
-Underwater sound, a wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
+A wave-simulated bass layer (true interference and room modes below about 200 Hz), structure-borne sound, and a beginner settings screen.
 
 ## Known limits
 
 - OpenAL's built-in per-sound filter has three controls (overall gain, a bass cut and a treble cut). The 8-band result is reduced to those, so the tone shaping is coarser than the calculation behind it, and bass can be cut but never lifted.
+- The water surface costs the same whatever angle sound meets it at. Real water lets less through at a slant.
 - A sound in plain view through an opening is treated as unobstructed; the opening's size only affects sounds that have to bend to reach you.
 - Defaults aim for realism: Wall Strength 1.0 and the Realism quality preset. Walls are strong (one stone block takes off about 35 dB), and the preset's performance cost has not been measured. The Balanced and Performance presets are lighter.
 - The game-facing code is new and has had little in-game testing.
@@ -43,7 +45,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 116 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 131 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 

@@ -16,6 +16,7 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Air absorption over distance.
 - Doppler shift for moving listeners and moving sound sources.
 - Distinct echoes off large flat surfaces, as delayed copies placed in the surface's direction. Music and looping sounds echo too.
+- Water and lava: faster travel, a loss at each surface crossing, duller hearing when submerged, and Doppler scaled to the listener's medium.
 - Own settings screen: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Every setting is in these rows.
 - Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
 - Defaults are the most realistic values.

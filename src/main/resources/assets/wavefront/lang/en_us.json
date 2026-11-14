@@ -51,6 +51,11 @@
           "summary": "Sound arrives late over distance, dulls in air and shifts pitch with speed.",
           "summary_off": "Sounds arrive instantly, as in vanilla."
         },
+        "water": {
+          "title": "Water and lava",
+          "summary": "Faster under water, duller to submerged ears, barely crossing the surface.",
+          "summary_off": "Water and lava are treated as air."
+        },
         "reverb": {
           "title": "Reverb",
           "summary": "Echo that matches the space you are in.",
@@ -119,7 +124,8 @@
         "physics.group": {
           "walls": "Walls",
           "bending": "Diffraction",
-          "distance": "Distance and Motion"
+          "distance": "Distance and Motion",
+          "water": "Water and Lava"
         },
         "voicechat": "Voice Chat",
         "voicechat.group": {
@@ -332,7 +338,13 @@
       "echoContinuous": "Echo Music and Loops",
       "echoContinuous.description": "Gives music discs and looping sounds echoes as well. Each echo is a second copy of the sound that plays for as long as the sound does and is re-aimed as you move. Looping sounds, such as a moving minecart, pick up new surfaces as they go and drop the ones they leave behind. A music disc only echoes off surfaces that were in range when it started.\\n\\nRealism: ON, a jukebox near a cliff should echo like anything else. Most realistic: ON.\\n\\nPerformance: each echo of a music disc is another music stream, and Minecraft only has 8 of those. Fastest: OFF.",
       "echoRough": "Rough Surface Echoes",
-      "echoRough.description": "Lets uneven surfaces echo as well as flat ones: natural cliffs, cave walls, anything whose face varies by up to 2 blocks in depth and covers at least 40 percent of a 5 by 5 patch. The rougher and patchier the surface, the weaker the echo, and high notes lose the most.\\n\\nRealism: mixed. A real rough wall sends back a repeat smeared over a few hundredths of a second, and this plays one clean repeat. Against a cliff in the open that is closer to reality than no echo at all; in a rough cave it can make echoes clearer than they should be. Only the Overkill preset switches it on.\\n\\nPerformance: about five times as many block checks for each surface. Fastest: OFF."
+      "echoRough.description": "Lets uneven surfaces echo as well as flat ones: natural cliffs, cave walls, anything whose face varies by up to 2 blocks in depth and covers at least 40 percent of a 5 by 5 patch. The rougher and patchier the surface, the weaker the echo, and high notes lose the most.\\n\\nRealism: mixed. A real rough wall sends back a repeat smeared over a few hundredths of a second, and this plays one clean repeat. Against a cliff in the open that is closer to reality than no echo at all; in a rough cave it can make echoes clearer than they should be. Only the Overkill preset switches it on.\\n\\nPerformance: about five times as many block checks for each surface. Fastest: OFF.",
+      "water": "Water and Lava",
+      "water.description": "Treats water and lava as their own kind of space for sound. Sound moves about four times faster in water, very little of it crosses the surface, and with your head under you hear less treble. Lava works the same way with its own figures.\\n\\nRealism: ON. Most realistic: ON. Real water does not make sound carry further at Minecraft distances, so that is not simulated.\\n\\nPerformance: a path that touches water or lava is checked every quarter block along the way; paths through air alone cost nothing extra. Fastest: OFF.",
+      "waterSurfaceStrength": "Surface Barrier",
+      "waterSurfaceStrength.description": "How much is lost each time sound crosses between air and water, or air and lava. 0 lets everything through.\\n\\nRealism: 1.0 is the real figure, about 29 dB for water and 36 dB for lava, so a mob on the shore is very faint from under water. That is the loss for sound hitting the surface straight on. At a slant real water lets even less through, which is not simulated. Most realistic: 1.0.\\n\\nPerformance: no effect.",
+      "submergedHearing": "Submerged Hearing",
+      "submergedHearing.description": "How much treble you lose while your head is under water or lava. 0 leaves your hearing unchanged.\\n\\nRealism: under water people hear through the bones of the skull, and measured hearing is best around 500 to 1000 Hz instead of 3000 to 4000 Hz. 1.0 takes about 12 dB off the high notes to match. That amount is an estimate from those measurements. Most realistic: 1.0.\\n\\nPerformance: no effect."
     }
   }
 }

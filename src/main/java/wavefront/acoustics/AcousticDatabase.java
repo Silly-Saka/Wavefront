@@ -31,6 +31,10 @@ public final class AcousticDatabase {
     private final Map<String, Double> fill = new HashMap<>();
     private final Set<String> nonPhysical = new HashSet<>();
 
+    // Used when the file has no "media" section (an older override file, for example).
+    private Medium water = new Medium("water", 1447.3, 999.7);
+    private Medium lava = new Medium("lava", 2500.0, 2600.0);
+
     private double capDb = 45.0;
     private double wallStrength = 1.0;
 
@@ -77,6 +81,11 @@ public final class AcousticDatabase {
                 db.fill.put(e.getKey(), clamp01(e.getValue().getAsDouble()));
             }
         }
+        if (root.has("media")) {
+            JsonObject media = root.getAsJsonObject("media");
+            db.water = medium(media, "water_fresh", db.water);
+            db.lava = medium(media, "lava", db.lava);
+        }
         if (root.has("unmapped_non_physical")) {
             for (JsonElement e : root.getAsJsonArray("unmapped_non_physical")) db.nonPhysical.add(e.getAsString());
         }
@@ -87,6 +96,23 @@ public final class AcousticDatabase {
         }
         db.recomputeGameplay();
         return db;
+    }
+
+    private static Medium medium(JsonObject media, String key, Medium fallback) {
+        if (!media.has(key)) return fallback;
+        JsonObject m = media.getAsJsonObject(key);
+        if (!m.has("sound_speed_m_s") || !m.has("density_kg_m3")) return fallback;
+        return new Medium(fallback.name, m.get("sound_speed_m_s").getAsDouble(), m.get("density_kg_m3").getAsDouble());
+    }
+
+    /** Water as something sound travels through. */
+    public Medium water() {
+        return water;
+    }
+
+    /** Lava as something sound travels through. */
+    public Medium lava() {
+        return lava;
     }
 
     private static double[] bands(JsonObject m, String key) {

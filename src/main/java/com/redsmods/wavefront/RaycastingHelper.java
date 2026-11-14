@@ -460,7 +460,7 @@ public class RaycastingHelper {
             playing.setTargetVolume(volume);
             playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
-            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.pathLength);
+            updateEchoes(world, player, playerPos, sourcePos, playing, echoVolume, solved.seconds);
             return;
         }
         if (originalSound instanceof RedTickableInstance) return; // classic-mode sound left over from a settings change
@@ -470,13 +470,13 @@ public class RaycastingHelper {
                 originalSound.getSound(), originalSound.getSource(), solved.position,
                 Math.max(0.01f, volume), pitch, original, 1f, 1f);
         newSound.setBandGains(solved.gain, solved.gainLF, solved.gainHF, true);
-        newSound.setDelaySeconds(solved.pathLength / 343f); // speed of sound, 343 blocks per second
+        newSound.setDelaySeconds(solved.seconds); // 343 blocks per second in air, faster under water
         soundPermInstanceMap.put(original, newSound);
 
         if (Config.getInstance().debug == DebugType.ACTION_BAR) client.player.sendOverlayMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)")));
         else if (Config.getInstance().debug == DebugType.CHAT) client.player.sendSystemMessage(Component.literal(
-                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.pathLength / 0.343f, SoundClock.supported() ? "" : " (no exact timing)")));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f  delay %.0f ms%s", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength, solved.seconds * 1000f, SoundClock.supported() ? "" : " (no exact timing)")));
 
         queueSound(newSound);
         queueEchoes(world, player, playerPos, sourcePos, originalSound, original, newSound, echoVolume, pitch);
@@ -507,7 +507,7 @@ public class RaycastingHelper {
                 copy.setEchoDirection(echo.direction);
                 copy.setEchoBounce(echo.bounce);
                 copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, true);
-                copy.setDelaySeconds(echo.pathLength / 343f);
+                copy.setDelaySeconds(echo.seconds);
                 // A loop's echo can be started again later, so it need not hold a channel while silent.
                 copy.setRetireWhenSilent(original.isLooping() && !originalSound.getSound().shouldStream());
                 main.getEchoCopies().add(copy);
@@ -523,10 +523,10 @@ public class RaycastingHelper {
      * surface is no longer there fades to silence; and a looping sound gains a new echo whenever
      * a surface comes into play, which is what lets a moving minecart echo off walls it reaches.
      *
-     * @param directPath how far the sound itself currently travels to the listener, in blocks
+     * @param directSeconds how long the sound itself currently takes to reach the listener
      */
     private static void updateEchoes(Level world, Player player, Vec3 playerPos, Vec3 sourcePos,
-                                     RedPermeatedSoundInstance main, float volume, float directPath) {
+                                     RedPermeatedSoundInstance main, float volume, float directSeconds) {
         try {
             Config cfg = Config.getInstance();
             // A new echo has to start partway through the sound, in step with it. That works for
@@ -566,9 +566,9 @@ public class RaycastingHelper {
                 copy.setEchoBounce(echo.bounce);
                 copy.setBandGains(0f, echo.gainLF, echo.gainHF, true); // fade in from silence
                 copy.setBandGains(echoFilterGain(echo.gain, volume), echo.gainLF, echo.gainHF, false);
-                copy.setDelaySeconds(echo.pathLength / 343f);
+                copy.setDelaySeconds(echo.seconds);
                 copy.setFollowSource(main.alSource());
-                copy.setFollowLag(Math.max(0f, (echo.pathLength - directPath) / 343f));
+                copy.setFollowLag(Math.max(0f, echo.seconds - directSeconds));
                 copy.setRetireWhenSilent(true);
                 main.getEchoCopies().add(copy);
                 queueSound(copy);

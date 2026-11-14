@@ -261,6 +261,24 @@ public class Config {
     @CustomDescription("yacl3.config.wavefront:config.echoRange.description")
     @SerialEntry public int echoRange = 96;
 
+    // ===== Water and lava =====
+    @AutoGen(category = "physics", group = "water")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.water.description")
+    @SerialEntry public boolean water = true;
+
+    @AutoGen(category = "physics", group = "water")
+    @FloatSlider(min = 0, max = 2, step = 0.05f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.waterSurfaceStrength.description")
+    @SerialEntry public float waterSurfaceStrength = 1.0f;
+
+    @AutoGen(category = "physics", group = "water")
+    @FloatSlider(min = 0, max = 2, step = 0.05f)
+    @FormatTranslation("wavefront.config.unit.multiplier")
+    @CustomDescription("yacl3.config.wavefront:config.submergedHearing.description")
+    @SerialEntry public float submergedHearing = 1.0f;
+
     // ===== Voice Chat tab =====
     @AutoGen(category = "voicechat", group = "main")
     @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
