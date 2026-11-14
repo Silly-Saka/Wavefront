@@ -97,6 +97,22 @@ public class Config {
                 c.diffractionRange = 32;
                 c.diffractionSearchBudget = 6000;
             }
+            case OVERKILL -> {
+                // Every accuracy setting at its limit, whether or not the difference can be heard.
+                // Strengths (walls, diffraction loss, air, Doppler, echoes) stay at 1.0 because that
+                // is the real-world value, and bounces stay at 3 because the reverb was tuned there:
+                // raising either would make the sound different, not more exact.
+                c.raysCast = 2000;
+                c.maxRayLength = 16;
+                c.tickRate = 1;
+                c.diffractionRoutes = 4;
+                c.diffractionRange = 64;
+                c.diffractionSearchBudget = 20000;
+                c.echoCount = 3;
+                c.echoRange = 128;
+                c.procRange = -1;
+                c.maxSounds = 1000;
+            }
             default -> { } // Realism is the defaults; Custom never gets here
         }
     }

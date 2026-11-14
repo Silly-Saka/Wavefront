@@ -19,6 +19,7 @@ First version, forked from Sound Physics Perfected 1.17.7 (26.x branch).
 - Own settings screen: a Quality switch and expandable rows for Walls, Diffraction, Reverb, Voice chat and General. Every setting is in these rows.
 - Performance, Balanced and Realism are fixed presets covering every setting; changing one asks first, then switches to Custom starting from that preset.
 - Defaults are the most realistic values.
+- Overkill quality preset: every accuracy setting at its limit.
 - Every tooltip says how the setting affects realism and performance, with a recommended value for each.
 - Plain-language tooltips on the main settings.
 - New icon.

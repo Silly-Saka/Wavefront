@@ -24,7 +24,9 @@
         "balanced": "Balanced",
         "balanced.tip": "In between. 200 rays, 3 diffraction routes out to 32 blocks.",
         "realism": "Realism",
-        "realism.tip": "Most thorough, and the default. 500 rays, 4 diffraction routes out to 64 blocks, sounds re-checked 5 times a second.",
+        "realism.tip": "Most thorough values that still make an audible difference, and the default. 500 rays, 4 diffraction routes out to 64 blocks, 2 echoes out to 96 blocks, sounds re-checked 5 times a second.",
+        "overkill": "Overkill",
+        "overkill.tip": "Every accuracy setting at its limit, whether or not you can hear the difference: 2000 rays reaching 16 chunks, every sound re-checked every tick, 4 diffraction routes with the deepest search, 3 echoes out to 128 blocks, no range or sound-count limits. Strengths stay at their real-world value of 1.0. Expect a heavy load and possible stutter in busy places.",
         "custom": "Custom",
         "custom.tip": "Your own values. Changing any setting while on a preset switches here, starting from that preset's values."
       },
@@ -103,6 +105,7 @@
         "performance": "Performance",
         "balanced": "Balanced",
         "realism": "Realism",
+        "overkill": "Overkill",
         "custom": "Custom"
       }
     },
