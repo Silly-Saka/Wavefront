@@ -489,9 +489,152 @@ public class SelfTest {
         Propagation.Result silent = Propagation.combine(lis, src, Propagation.list());
         check("no arrivals means silence", silent.gain == 0, "");
 
+        waveChecks();
+
         System.out.println();
         System.out.println(failures == 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED");
         if (failures > 0) System.exit(1);
+    }
+
+    // ---------------- the wave simulation of bass
+
+    static final float STONE = WaveGrid.admittanceFor(0.02);
+
+    static double db(double energy) {
+        return 10 * Math.log10(Math.max(energy, 1e-12));
+    }
+
+    /** A 32 x 20 x 32 block space with a stone floor 6 thick, and optionally a wall across it at x = 20. */
+    static WaveGrid waveRoom(int n, int wallHeight, boolean doorway, WaveShape inDoorway) {
+        WaveGrid g = new WaveGrid(0, 0, 0, 32, 20, 32, n);
+        for (int x = 0; x < 32; x++) {
+            for (int z = 0; z < 32; z++) {
+                for (int y = 0; y < 6; y++) g.setFull(x, y, z, STONE);
+                if (x != 20) continue;
+                for (int y = 6; y < 6 + wallHeight; y++) {
+                    boolean opening = doorway && z == 16 && y < 8;
+                    if (!opening) g.setFull(x, y, z, STONE);
+                    else if (inDoorway != null) g.setShape(x, y, z, inDoorway, STONE);
+                }
+            }
+        }
+        g.build();
+        return g;
+    }
+
+    static void waveChecks() {
+        // ---- how blocks that are not full cubes sit in the grid
+        double[][] door = {{0, 0, 0, 0.1875, 1, 1}}, pane = {{0.4375, 0, 0, 0.5625, 1, 1}}, slab = {{0, 0, 0, 1, 0.5, 1}};
+        double[][] carpet = {{0, 0, 0, 1, 0.0625, 1}}, post = {{0.375, 0, 0.375, 0.625, 1, 0.625}}, stairs = {{0, 0, 0, 1, 0.5, 1}, {0.5, 0.5, 0, 1, 1, 1}};
+        WaveGrid g = new WaveGrid(0, 0, 0, 3, 3, 3, 1);
+        g.setShape(1, 1, 1, WaveShape.of(door, 1), STONE);
+        g.build();
+        check("a door fills no cell at 1 cell per block", g.isOpen(1.5, 1.5, 1.5), "");
+        check("a door closes the way through it and leaves the other sides open", g.mask[(2 * 5 + 2) * 5 + 2] == (63 & ~1) && (g.mask[(2 * 5 + 2) * 5 + 1] & 2) == 0,
+                "(mask " + g.mask[(2 * 5 + 2) * 5 + 2] + ")");
+        g = new WaveGrid(0, 0, 0, 3, 3, 3, 2);
+        g.setShape(1, 1, 1, WaveShape.of(pane, 2), STONE);
+        g.build();
+        check("a glass pane in the middle of a block closes the way across it", g.isOpen(1.25, 1.5, 1.5) && g.isOpen(1.75, 1.5, 1.5)
+                && (g.mask[(3 * 8 + 3) * 8 + 3] & 2) == 0 && (g.mask[(3 * 8 + 3) * 8 + 4] & 1) == 0, "");
+        check("a fence post leaves everything open", WaveShape.of(post, 1).open && WaveShape.of(post, 2).open, "");
+        g = new WaveGrid(0, 0, 0, 3, 3, 3, 2);
+        g.setShape(1, 1, 1, WaveShape.of(slab, 2), STONE);
+        g.setShape(0, 1, 1, WaveShape.of(stairs, 2), STONE);
+        g.setShape(2, 1, 1, WaveShape.of(carpet, 2), STONE);
+        g.build();
+        check("a slab fills its lower half and leaves the upper half open", !g.isOpen(1.25, 1.25, 1.25) && g.isOpen(1.25, 1.75, 1.25), "");
+        check("stairs fill the step and leave the open quarter", !g.isOpen(0.75, 1.75, 1.25) && g.isOpen(0.25, 1.75, 1.25), "");
+        check("a carpet takes up no room", g.isOpen(2.25, 1.25, 1.25) && (g.mask[(3 * 8 + 3) * 8 + 5] & 8) != 0, "");
+
+        // ---- open air: the same at every distance and in every direction
+        double worst = 0;
+        for (int n = 1; n <= 2; n++) {
+            WaveGrid open = new WaveGrid(0, 0, 0, 32, 20, 32, n);
+            open.build();
+            BassField field = open.solveAll(16.5, 10.5, 16.5, n, 1, WaveGrid.SERIAL);
+            for (double[] p : new double[][]{{20.5, 10.5, 16.5}, {28.5, 10.5, 16.5}, {16.5, 3.5, 16.5}, {24.5, 16.5, 24.5}, {26.5, 10.5, 26.5}, {21.3, 13.1, 12.2}}) {
+                for (double v : field.sample(p[0], p[1], p[2])) worst = Math.max(worst, Math.abs(db(v)));
+            }
+            if (n == 1) check("one cell per block gives one band", field.bands() == 1, "");
+        }
+        check("open air comes out as open air, within 2 dB at any distance and direction", worst < 2.0, String.format("(worst %.2f dB)", worst));
+
+        // ---- hard ground: the bounce off the ground adds to the direct sound
+        BassField ground = waveRoom(2, 0, false, null).solveAll(8.5, 7.62, 16.5, 2, 1, WaveGrid.SERIAL);
+        double[] onGround = ground.sample(16.5, 6.5, 16.5);
+        check("over hard ground bass is 3.5 to 6.5 dB above open air", db(onGround[0]) > 3.5 && db(onGround[0]) < 6.5 && db(onGround[1]) > 3.5 && db(onGround[1]) < 6.5,
+                String.format("(63 Hz %.1f dB, 125 Hz %.1f dB)", db(onGround[0]), db(onGround[1])));
+        double[] coarseGround = waveRoom(1, 0, false, null).solveAll(8.5, 7.62, 16.5, 1, 1, WaveGrid.SERIAL).sample(16.5, 6.5, 16.5);
+        near("the open-ground reference matches the coarse simulation at 63 Hz", db(coarseGround[0]), db(BassMix.OPEN_GROUND[0]), 1.0);
+        near("the open-ground reference matches the simulation at 63 Hz", db(onGround[0]), db(BassMix.OPEN_GROUND[0]), 1.0);
+        near("the open-ground reference matches the simulation at 125 Hz", db(onGround[1]), db(BassMix.OPEN_GROUND[1]), 1.0);
+
+        // ---- a wall to the ceiling: sealed, then with a doorway, then with the doorway shut
+        double[] src = {26.5, 6.5, 16.5};
+        double[] lis = {14.5, 7.62, 16.5};
+        check("behind a sealed wall nothing is known, so the wall figures stand",
+                waveRoom(2, 14, false, null).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2]) == null, "");
+        double[] through = waveRoom(2, 14, true, null).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2]);
+        double[] openRoom = waveRoom(2, 0, false, null).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2]);
+        check("a doorway lets bass through, less than with no wall", through != null && through[0] < openRoom[0] && through[1] < openRoom[1] && db(through[0]) > -20,
+                String.format("(63 Hz %.1f dB, 125 Hz %.1f dB; no wall %.1f, %.1f)", db(through[0]), db(through[1]), db(openRoom[0]), db(openRoom[1])));
+        check("the lower the note, the more of it gets through the doorway", through[0] > through[1], "");
+        check("glass panes in the doorway seal it", waveRoom(2, 14, true, WaveShape.of(pane, 2)).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2]) == null, "");
+        check("a door in the doorway seals it", waveRoom(1, 14, true, WaveShape.of(door, 1)).solveAll(lis[0], lis[1], lis[2], 1, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2]) == null, "");
+        check("a fence in the doorway changes nothing", Math.abs(db(waveRoom(2, 14, true, WaveShape.of(post, 2)).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL).sample(src[0], src[1], src[2])[0]) - db(through[0])) < 0.01, "");
+        double[] back = waveRoom(2, 14, true, null).solveAll(src[0], src[1], src[2], 2, 1, WaveGrid.SERIAL).sample(lis[0], lis[1], lis[2]);
+        check("from A to B is the same as from B to A, within 1 dB", Math.abs(db(back[0]) - db(through[0])) < 1.0 && Math.abs(db(back[1]) - db(through[1])) < 1.0,
+                String.format("(63 Hz %.1f against %.1f dB, 125 Hz %.1f against %.1f dB)", db(through[0]), db(back[0]), db(through[1]), db(back[1])));
+
+        // ---- a wall 6 high: bass bends over the top
+        BassField over = waveRoom(2, 6, false, null).solveAll(lis[0], lis[1], lis[2], 2, 1, WaveGrid.SERIAL);
+        double[] close = over.sample(22.5, 6.5, 16.5), far = over.sample(29.5, 6.5, 16.5);
+        check("behind a wall 6 high bass is at least 8 dB down on open ground", db(close[0]) < db(onGround[0]) - 8 && db(close[1]) < db(onGround[1]) - 8,
+                String.format("(63 Hz %.1f dB, 125 Hz %.1f dB)", db(close[0]), db(close[1])));
+        check("further behind the wall the shadow fills in", far[0] > close[0] && far[1] > close[1],
+                String.format("(63 Hz %.1f then %.1f dB)", db(close[0]), db(far[0])));
+
+        // ---- splitting the work over threads changes nothing
+        WaveGrid.Runner two = (parts, body) -> java.util.stream.IntStream.range(0, parts).parallel().forEach(body::accept);
+        double[] split = waveRoom(2, 6, false, null).solveAll(lis[0], lis[1], lis[2], 2, 4, two).sample(22.5, 6.5, 16.5);
+        check("splitting the work over threads gives exactly the same answer", split[0] == close[0] && split[1] == close[1], "");
+
+        // ---- odd places for the listener
+        check("a listener outside the grid gets no field", waveRoom(1, 0, false, null).solveAll(40, 8, 16, 1, 1, WaveGrid.SERIAL) == null, "");
+        check("a listener inside a solid block is moved to the nearest air", waveRoom(1, 0, false, null).solveAll(8.5, 5.8, 16.5, 1, 1, WaveGrid.SERIAL) != null, "");
+        check("a source buried in stone has no wave result", ground.sample(16.5, 2.5, 16.5) == null, "");
+        check("a block sound starts inside its own block and is read from the air round it", ground.sample(16.5, 5.5, 16.5) != null, "");
+
+        // ---- turning the wave result into filter settings
+        double[] ones = {1, 1, 1, 1, 1, 1, 1, 1};
+        List<Propagation.Arrival> clear = Propagation.list();
+        clear.add(Propagation.straight(new double[]{10, 0, 0}, 10, ones.clone()));
+        Propagation.Result inView = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, clear);
+        BassMix.Result plain = BassMix.mix(inView, ones, 10, 10, null, 1.0);
+        check("a sound in plain view with no wave result is left alone", plain.gainLF == 1.0 && plain.send == 0.0 && !plain.usedWave, "");
+        BassMix.Result onOpenGround = BassMix.mix(inView, ones, 10, 10, BassMix.OPEN_GROUND.clone(), 1.0);
+        check("on open flat ground the wave result changes nothing", Math.abs(onOpenGround.gainLF - 1.0) < 1e-9 && onOpenGround.send < 1e-9 && onOpenGround.usedWave, "");
+        BassMix.Result inTheAir = BassMix.mix(inView, ones, 10, 10, new double[]{1.0, 1.0}, 1.0);
+        check("high in the air, away from any surface, there is less bass", inTheAir.gainLF < 0.9 && inTheAir.send == 0.0, String.format("(bass factor %.2f)", inTheAir.gainLF));
+        BassMix.Result inRoom = BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, 1.0);
+        check("in a small room the extra bass goes to the bass channel", inRoom.gainLF == 1.0 && inRoom.send > 0.3 && inRoom.send < 1.0, String.format("(extra %.2f)", inRoom.send));
+        check("bass is never raised by more than 9 dB", BassMix.mix(inView, ones, 10, 10, new double[]{1000, 1000}, 1.0).bass[0] <= BassMix.MAX_BOOST, "");
+        check("half strength lands half way in decibels", Math.abs(db(BassMix.mix(inView, ones, 10, 10, new double[]{BassMix.OPEN_GROUND[0] * 3.1623, 1.0}, 0.5).bass[0]) - 2.5) < 0.05, "");
+        check("zero strength ignores the wave result", !BassMix.mix(inView, ones, 10, 10, new double[]{12.0, 9.0}, 0.0).usedWave, "");
+        check("a band with no wave result keeps its wall figure", BassMix.mix(inView, ones, 10, 10, new double[]{Double.NaN, 9.0}, 1.0).bass[0] == 1.0, "");
+
+        // behind a stone wall: the middle of the sound loses far more than the bass
+        double[] wallLeak = {1e-3, 4e-4, 1e-4, 3e-5, 1e-5, 1e-5, 1e-5, 1e-5};
+        List<Propagation.Arrival> blocked = Propagation.list();
+        blocked.add(Propagation.straight(new double[]{10, 0, 0}, 10, wallLeak.clone()));
+        Propagation.Result behind = Propagation.combine(new double[]{0, 0, 0}, new double[]{10, 0, 0}, blocked);
+        BassMix.Result thump = BassMix.mix(behind, wallLeak, 10, 10, null, 1.0);
+        check("behind a wall the bass that the filter cannot give goes to the bass channel", thump.gainLF == 1.0 && thump.send > behind.gain,
+                String.format("(middle %.4f, extra bass %.4f)", behind.gain, thump.send));
+        BassMix.Result leakPlusDoor = BassMix.mix(behind, wallLeak, 10, 10, new double[]{0.4, 0.2}, 1.0);
+        check("what leaks through the wall is added to what the wave carries round it",
+                Math.abs(leakPlusDoor.bass[0] - (0.4 / BassMix.OPEN_GROUND[0] + wallLeak[0])) < 1e-9, "");
     }
 
     static double max(double[] a) {
