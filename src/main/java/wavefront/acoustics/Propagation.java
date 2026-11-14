@@ -34,12 +34,15 @@ public final class Propagation {
         public final double gain;
         /** Extra factor applied to treble (above about 5 kHz), 0..1 (linear amplitude). */
         public final double gainHF;
+        /** Extra factor applied to bass (below about 250 Hz), 0..1 (linear amplitude). */
+        public final double gainLF;
         /** Energy per band relative to an unobstructed sound at the apparent distance. */
         public final double[] bandEnergy;
 
-        Result(double[] apparentPosition, double gain, double gainHF, double[] bandEnergy) {
+        Result(double[] apparentPosition, double gain, double gainLF, double gainHF, double[] bandEnergy) {
             this.apparentPosition = apparentPosition;
             this.gain = gain;
+            this.gainLF = gainLF;
             this.gainHF = gainHF;
             this.bandEnergy = bandEnergy;
         }
@@ -52,6 +55,18 @@ public final class Propagation {
         double[] energy = new double[Bands.COUNT];
         for (int b = 0; b < Bands.COUNT; b++) energy[b] = Bands.dbToEnergy(loss[b]);
         return new Arrival(energy, route.length, route.lastBend());
+    }
+
+    /**
+     * As {@link #diffracted(PathFinder.Route, double)}, but also limited by the size of the
+     * smallest opening the route passes through (null for none).
+     */
+    public static Arrival diffracted(PathFinder.Route route, double straightDistance, Aperture.Opening opening) {
+        Arrival arrival = diffracted(route, straightDistance);
+        if (opening != null) {
+            for (int b = 0; b < Bands.COUNT; b++) arrival.energy[b] = Math.min(arrival.energy[b], opening.energyLimit(b));
+        }
+        return arrival;
     }
 
     /** Builds the arrival for the straight line, given what survives the blocks in the way. */
@@ -71,7 +86,7 @@ public final class Propagation {
             total += weight[i];
         }
         if (arrivals.isEmpty() || total < 1e-14) {
-            return new Result(source.clone(), 0, 0, Bands.zeros());
+            return new Result(source.clone(), 0, 0, 0, Bands.zeros());
         }
 
         // Direction: loudness-weighted average of where each arrival comes from.
@@ -109,19 +124,22 @@ public final class Propagation {
         }
         for (int b = 0; b < Bands.COUNT; b++) bandEnergy[b] = Math.min(1.0, bandEnergy[b]);
 
-        // The audio engine's per-sound filter has two knobs: overall gain and treble gain.
-        double body = (bandEnergy[2] + bandEnergy[3] + bandEnergy[4] + bandEnergy[5]) / 4.0; // 250 Hz - 2 kHz
-        double treble = (bandEnergy[6] + bandEnergy[7]) / 2.0;                                  // 4 - 8 kHz
+        // The audio engine's per-sound filter has three knobs: overall gain, and how much less
+        // the bass and the treble get. It can only cut bass and treble, never lift them.
+        double bass = (bandEnergy[0] + bandEnergy[1] + bandEnergy[2]) / 3.0;   // 63 - 250 Hz
+        double body = (bandEnergy[3] + bandEnergy[4] + bandEnergy[5]) / 3.0;   // 500 Hz - 2 kHz
+        double treble = (bandEnergy[6] + bandEnergy[7]) / 2.0;                 // 4 - 8 kHz
         double gain = Math.sqrt(body);
+        double gainLF = gain < 1e-5 ? 0 : Math.min(1.0, Math.sqrt(bass) / gain);
         double gainHF = gain < 1e-5 ? 0 : Math.min(1.0, Math.sqrt(treble) / gain);
-        return new Result(apparent, Math.min(1.0, gain), gainHF, bandEnergy);
+        return new Result(apparent, Math.min(1.0, gain), gainLF, gainHF, bandEnergy);
     }
 
     /** Convenience for the common case of an unobstructed sound. */
     public static Result unobstructed(double[] source) {
         double[] ones = new double[Bands.COUNT];
         java.util.Arrays.fill(ones, 1.0);
-        return new Result(source.clone(), 1.0, 1.0, ones);
+        return new Result(source.clone(), 1.0, 1.0, 1.0, ones);
     }
 
     public static List<Arrival> list() {

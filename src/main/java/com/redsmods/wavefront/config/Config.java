@@ -175,6 +175,11 @@ public class Config {
     @SerialEntry public boolean diffraction = true;
 
     @AutoGen(category = "physics", group = "bending")
+    @Boolean(formatter = Boolean.Formatter.ON_OFF, colored = true)
+    @CustomDescription("yacl3.config.wavefront:config.openingSize.description")
+    @SerialEntry public boolean openingSize = true;
+
+    @AutoGen(category = "physics", group = "bending")
     @FloatSlider(min = 0, max = 2, step = 0.05f)
     @FormatTranslation("wavefront.config.unit.multiplier")
     @CustomDescription("yacl3.config.wavefront:config.diffractionStrength.description")

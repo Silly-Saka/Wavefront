@@ -448,7 +448,7 @@ public class RaycastingHelper {
             RedPermeatedSoundInstance playing = (RedPermeatedSoundInstance) originalSound;
             playing.setTargetPosition(solved.position);
             playing.setTargetVolume(volume);
-            playing.setBandGains(solved.gain, solved.gainHF, false);
+            playing.setBandGains(solved.gain, solved.gainLF, solved.gainHF, false);
             playing.setAttenuationMultiplier(1f);
             return;
         }
@@ -458,13 +458,13 @@ public class RaycastingHelper {
         RedPermeatedSoundInstance newSound = new RedPermeatedSoundInstance(originalSound.getIdentifier(),
                 originalSound.getSound(), originalSound.getSource(), solved.position,
                 Math.max(0.01f, volume), pitch, original, 1f, 1f);
-        newSound.setBandGains(solved.gain, solved.gainHF, true);
+        newSound.setBandGains(solved.gain, solved.gainLF, solved.gainHF, true);
         soundPermInstanceMap.put(original, newSound);
 
         if (Config.getInstance().debug == DebugType.ACTION_BAR) client.player.sendOverlayMessage(Component.literal(
-                String.format("%s  gain %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainHF, solved.pathLength)));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength)));
         else if (Config.getInstance().debug == DebugType.CHAT) client.player.sendSystemMessage(Component.literal(
-                String.format("%s  gain %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainHF, solved.pathLength)));
+                String.format("%s  gain %.2f  bass %.2f  treble %.2f  path %.1f", original.getIdentifier(), solved.gain, solved.gainLF, solved.gainHF, solved.pathLength)));
 
         queueSound(newSound);
     }

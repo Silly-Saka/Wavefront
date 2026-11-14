@@ -209,10 +209,10 @@ public class SelfTest {
 
         // What the listener gets: quieter, duller, but clearly audible - not the near-silence the old method gave.
         double straight = dist(src, lis);
-        Occlusion through = new Occlusion();
-        through.throughSolid(stone, 1.0);
+        Occlusion wallLoss = new Occlusion();
+        wallLoss.throughSolid(stone, 1.0);
         List<Propagation.Arrival> arr = Propagation.list();
-        arr.add(Propagation.straight(src, straight, through.energy()));
+        arr.add(Propagation.straight(src, straight, wallLoss.energy()));
         for (PathFinder.Route r : routes) arr.add(Propagation.diffracted(r, straight));
         Propagation.Result res = Propagation.combine(lis, src, arr);
         double gainDb = -20 * Math.log10(res.gain);
@@ -220,7 +220,7 @@ public class SelfTest {
         check("behind the wall: treble cut more than the rest", res.gainHF < 0.9, String.format("(gainHF %.2f)", res.gainHF));
         check("sound appears to come from above the wall, not through it", res.apparentPosition[1] > lis[1] + 1.0,
                 String.format("(apparent y %.2f, listener y %.2f)", res.apparentPosition[1], lis[1]));
-        Propagation.Result throughOnly = Propagation.combine(lis, src, List.of(Propagation.straight(src, straight, through.energy())));
+        Propagation.Result throughOnly = Propagation.combine(lis, src, List.of(Propagation.straight(src, straight, wallLoss.energy())));
         check("without diffraction the same scene would be 30+ dB down", -20 * Math.log10(throughOnly.gain) > 30,
                 String.format("(%.1f dB)", -20 * Math.log10(throughOnly.gain)));
 
@@ -239,6 +239,59 @@ public class SelfTest {
         near("route length through the doorway", doorRoute.length, viaDoor, 0.15);
         near("sound appears to come from the doorway (z)", doorRoute.lastBend()[2], 6.0, 0.6);
         check("only one way through", routes.size() == 1, "(" + routes.size() + ")");
+
+        // ---------------- opening size
+        Aperture.Opening doorOpening = Aperture.tightest(d, doorRoute);
+        check("doorway is recognised as an opening", doorOpening != null, "");
+        near("doorway area is 2 square blocks", doorOpening == null ? -1 : doorOpening.area, 2.0, 1e-9);
+        double doorStraight = dist(friend, me);
+        near("doorway even share matches the hand calculation", doorOpening.evenShare(),
+                2.0 * doorRoute.length * doorRoute.length / (2 * Math.PI * Math.pow(doorOpening.before, 2) * Math.pow(doorOpening.after, 2)), 1e-9);
+        check("doorway limits bass much more than treble", doorOpening.energyLimit(1) < 0.2 && doorOpening.energyLimit(6) == 1.0,
+                String.format("(125 Hz %.1f dB, 4 kHz %.1f dB)", Bands.energyToDb(doorOpening.energyLimit(1)), Bands.energyToDb(doorOpening.energyLimit(6))));
+
+        // Nearly in line through the same doorway, from further back: the path barely bends, so the
+        // edge formula alone lets almost all the bass through. The doorway's size must cut it.
+        double[] far = {-6.5, 1.62, 6.5}, offAxis = {7.5, 1.62, 5.0};
+        List<PathFinder.Route> nearAxis = new PathFinder(d, 8000).findRoutes(far, offAxis, 1, 10);
+        check("near-axis route through the doorway is found", !nearAxis.isEmpty() && nearAxis.get(0).bends >= 1, "");
+        PathFinder.Route na = nearAxis.get(0);
+        double naStraight = dist(far, offAxis);
+        Propagation.Arrival plain = Propagation.diffracted(na, naStraight);
+        Propagation.Arrival sized = Propagation.diffracted(na, naStraight, Aperture.tightest(d, na));
+        check("the doorway cuts bass that the edge formula alone lets through", sized.energy[1] < plain.energy[1] * 0.5,
+                String.format("(125 Hz: %.1f dB with opening size, %.1f dB without)", Bands.energyToDb(sized.energy[1]), Bands.energyToDb(plain.energy[1])));
+        check("treble is not limited by a doorway this size", sized.energy[7] == plain.energy[7], "");
+        Propagation.Result through = Propagation.combine(offAxis, far, List.of(sized));
+        check("the result asks for a bass cut", through.gainLF < 0.9, String.format("(gainLF %.2f, gain %.2f, gainHF %.2f)", through.gainLF, through.gain, through.gainHF));
+
+        // Same wall, three openings of different size: bigger passes more.
+        double[] limits = new double[3];
+        int[][] holes = {{1, 1}, {1, 2}, {3, 3}}; // width, height
+        for (int i = 0; i < holes.length; i++) {
+            GridWorld g = new GridWorld();
+            g.fill(-20, -1, -20, 20, -1, 20);
+            g.fill(-20, 6, -20, 20, 6, 20);
+            g.fill(0, 0, -20, 0, 5, 20);
+            g.clear(0, 0, 6, 0, holes[i][1] - 1, 6 + holes[i][0] - 1);
+            List<PathFinder.Route> rs = new PathFinder(g, 8000).findRoutes(new double[]{-2.5, 0.5, 0.5}, new double[]{2.5, 0.5, 0.5}, 1, 12);
+            Aperture.Opening op = rs.isEmpty() ? null : Aperture.tightest(g, rs.get(0));
+            limits[i] = op == null ? -1 : op.energyLimit(2);
+            near("hole " + holes[i][0] + "x" + holes[i][1] + " has the right area", op == null ? -1 : op.area, holes[i][0] * holes[i][1], 1e-9);
+        }
+        check("a bigger opening passes more sound at 250 Hz", limits[0] > 0 && limits[0] < limits[1] && limits[1] < limits[2],
+                String.format("(1x1 %.1f dB, 1x2 %.1f dB, 3x3 %.1f dB)", Bands.energyToDb(limits[0]), Bands.energyToDb(limits[1]), Bands.energyToDb(limits[2])));
+
+        check("over a free-standing wall there is no opening to limit the sound", Aperture.tightest(w, top) == null, "");
+
+        // A long 1x2 tunnel guides sound, so it must not be treated as a hole in a wall.
+        GridWorld tun = new GridWorld();
+        tun.fill(-12, -1, -6, 12, 4, 12);            // solid mass
+        tun.clear(-10, 0, 0, 0, 1, 0);               // tunnel along x at z = 0
+        tun.clear(0, 0, 0, 0, 1, 8);                 // turns the corner, runs along z
+        List<PathFinder.Route> tr = new PathFinder(tun, 8000).findRoutes(new double[]{-9.5, 0.5, 0.5}, new double[]{0.5, 0.5, 7.5}, 1, 6);
+        check("tunnel: a route is found round the corner", !tr.isEmpty() && tr.get(0).bends >= 1, "");
+        check("tunnel: not treated as a small opening", !tr.isEmpty() && Aperture.tightest(tun, tr.get(0)) == null, "");
 
         // ---------------- path finding: sealed room
         GridWorld s = new GridWorld();
@@ -272,7 +325,7 @@ public class SelfTest {
 
         // ---------------- combining arrivals
         Propagation.Result open = Propagation.unobstructed(src);
-        check("unobstructed sound is untouched", open.gain == 1.0 && open.gainHF == 1.0, "");
+        check("unobstructed sound is untouched", open.gain == 1.0 && open.gainLF == 1.0 && open.gainHF == 1.0, "");
         Propagation.Result silent = Propagation.combine(lis, src, Propagation.list());
         check("no arrivals means silence", silent.gain == 0, "");
 

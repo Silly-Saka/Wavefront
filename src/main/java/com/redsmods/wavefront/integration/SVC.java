@@ -146,7 +146,7 @@ public class SVC implements VoicechatPlugin {
                 if (Config.getInstance().voicechatReverb) fxHandler.applyReverbToSource(openALSource);
                 if (Config.getInstance().voicechatMuffle) {
                     float gain = Config.getInstance().voicechatMuffleVolume ? channelData.solved.gain : 1f;
-                    fxHandler.applyBandGainsToSource(openALSource, gain, channelData.solved.gainHF);
+                    fxHandler.applyBandGainsToSource(openALSource, gain, channelData.solved.gainLF, channelData.solved.gainHF);
                 }
             } catch (Exception e) {
                 System.err.println("Failed to apply OpenAL effects: " + e.getMessage());

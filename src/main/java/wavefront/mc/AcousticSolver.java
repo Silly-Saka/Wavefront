@@ -23,6 +23,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import wavefront.acoustics.AcousticDatabase;
 import wavefront.acoustics.AcousticMaterial;
+import wavefront.acoustics.Aperture;
 import wavefront.acoustics.Bands;
 import wavefront.acoustics.Occlusion;
 import wavefront.acoustics.PathFinder;
@@ -53,14 +54,17 @@ public final class AcousticSolver {
         public final Vec3 position;
         /** Overall volume factor from occlusion and diffraction, 0..1. */
         public final float gain;
+        /** Extra bass factor, 0..1. */
+        public final float gainLF;
         /** Extra treble factor, 0..1. */
         public final float gainHF;
         /** Length of the path the sound effectively travelled, in blocks. */
         public final float pathLength;
 
-        Solved(Vec3 position, float gain, float gainHF, float pathLength) {
+        Solved(Vec3 position, float gain, float gainLF, float gainHF, float pathLength) {
             this.position = position;
             this.gain = gain;
+            this.gainLF = gainLF;
             this.gainHF = gainHF;
             this.pathLength = pathLength;
         }
@@ -181,14 +185,14 @@ public final class AcousticSolver {
     public static Solved solve(Level level, Player player, Vec3 listener, Vec3 source) {
         float straight = (float) listener.distanceTo(source);
         AcousticDatabase db = database();
-        if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, straight);
+        if (db == null || straight < 0.05f) return new Solved(source, 1f, 1f, 1f, straight);
 
         Config cfg = Config.getInstance();
         db.setWallStrength(cfg.wallStrength);
         BlockPos sourceCell = BlockPos.containing(source);
 
         Occlusion direct = traceDirect(level, db, listener, source, sourceCell);
-        if (!direct.blocked()) return new Solved(source, 1f, 1f, straight);
+        if (!direct.blocked()) return new Solved(source, 1f, 1f, 1f, straight);
 
         double[] lis = {listener.x, listener.y, listener.z};
         double[] src = {source.x, source.y, source.z};
@@ -205,7 +209,9 @@ public final class AcousticSolver {
                     .findRoutes(src, lis, cfg.routes(), margin);
             for (PathFinder.Route route : routes) {
                 if (route.bends == 0) continue; // a clear straight line is already covered above
-                Propagation.Arrival arrival = Propagation.diffracted(route, straight);
+                // A doorway or small hole can only pass the sound that lands on it.
+                Aperture.Opening opening = cfg.openingSize ? Aperture.tightest(view, route) : null;
+                Propagation.Arrival arrival = Propagation.diffracted(route, straight, opening);
                 if (cfg.diffractionStrength != 1f) {
                     for (int b = 0; b < Bands.COUNT; b++) {
                         arrival.energy[b] = Math.pow(arrival.energy[b], cfg.diffractionStrength);
@@ -217,7 +223,7 @@ public final class AcousticSolver {
 
         Propagation.Result r = Propagation.combine(lis, src, arrivals);
         Vec3 apparent = new Vec3(r.apparentPosition[0], r.apparentPosition[1], r.apparentPosition[2]);
-        return new Solved(apparent, (float) r.gain, (float) r.gainHF, (float) listener.distanceTo(apparent));
+        return new Solved(apparent, (float) r.gain, (float) r.gainLF, (float) r.gainHF, (float) listener.distanceTo(apparent));
     }
 
     /** Adds up what every block on the straight line between listener and source does to the sound. */

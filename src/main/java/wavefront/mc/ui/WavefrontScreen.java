@@ -96,7 +96,7 @@ public class WavefrontScreen extends Screen {
                         "permeationAbsorption", "maxBlocksPermeated", "permeationStepSize", "attenuationType",
                         "shortcutDirectionality", "barrierAsAir")))));
         out.add(topic(placed, "diffraction", "diffraction",
-                List.of("diffractionStrength", "diffractionRoutes", "diffractionRange", "diffractionSearchBudget"), List.of()));
+                List.of("diffractionStrength", "openingSize", "diffractionRoutes", "diffractionRange", "diffractionSearchBudget"), List.of()));
 
         // Reverb: the main values, then one group per set of fine-tuning values.
         List<String> reverbMain = List.of("raysCast", "raysBounced", "maxRayLength", "bounceAbsorptionMultiplier");

@@ -24,6 +24,9 @@ public class OpenALEffectsHandler {
     private int sendFilter = 0;
     public boolean efxInitialized = false;
     private int directBlockFilter;
+    // Wavefront: a filter with separate bass and treble controls, created the first time it is needed.
+    private int bandFilter = 0;
+    private boolean bandFilterFailed = false;
 
     public int getDirectBlockFilter() { return directBlockFilter; }
 
@@ -474,6 +477,12 @@ public class OpenALEffectsHandler {
                 directBlockFilter = 0;
             }
 
+            if (bandFilter != 0) {
+                EXTEfx.alDeleteFilters(bandFilter);
+                bandFilter = 0;
+            }
+            bandFilterFailed = false;
+
             efxInitialized = false;
             System.out.println("EFX resources cleaned up successfully");
 
@@ -522,13 +531,28 @@ public class OpenALEffectsHandler {
 
     /**
      * Wavefront: sets a sound's filter straight from the physics result.
-     * gain is the overall volume factor, gainHF the extra factor for treble (above about 5 kHz).
+     * gain is the overall volume factor; gainLF and gainHF are the extra factors for bass
+     * (below about 250 Hz) and treble (above about 5 kHz).
      */
-    public void applyBandGainsToSource(int sourceId, float gain, float gainHF) {
+    public void applyBandGainsToSource(int sourceId, float gain, float gainLF, float gainHF) {
         try {
             if (!EXTEfx.alIsAuxiliaryEffectSlot(auxFXSlot)) {
                 cleanupEFXResources();
                 initializeReverb();
+                return;
+            }
+            if (gainLF < 0.999f && bandFilter == 0 && !bandFilterFailed) {
+                AL11.alGetError();
+                int created = EXTEfx.alGenFilters();
+                EXTEfx.alFilteri(created, EXTEfx.AL_FILTER_TYPE, EXTEfx.AL_FILTER_BANDPASS);
+                if (AL11.alGetError() == AL11.AL_NO_ERROR) bandFilter = created;
+                else bandFilterFailed = true; // this audio device has no band-pass filter: bass cuts are skipped
+            }
+            if (gainLF < 0.999f && bandFilter != 0) {
+                EXTEfx.alFilterf(bandFilter, EXTEfx.AL_BANDPASS_GAIN, clamp(gain, 0.0f, 1.0f));
+                EXTEfx.alFilterf(bandFilter, EXTEfx.AL_BANDPASS_GAINLF, clamp(gainLF, 0.0f, 1.0f));
+                EXTEfx.alFilterf(bandFilter, EXTEfx.AL_BANDPASS_GAINHF, clamp(gainHF, 0.0f, 1.0f));
+                AL11.alSourcei(sourceId, EXTEfx.AL_DIRECT_FILTER, bandFilter);
                 return;
             }
             EXTEfx.alFilterf(muffleFilter, EXTEfx.AL_LOWPASS_GAIN, clamp(gain, 0.0f, 1.0f));

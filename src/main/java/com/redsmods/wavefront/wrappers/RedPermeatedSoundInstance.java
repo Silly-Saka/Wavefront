@@ -21,8 +21,8 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     private float targetMuffle;
     // Wavefront physics mode: the filter is driven by these instead of permeationIndex.
     private boolean bandMode = false;
-    private float gain = 1f, gainHF = 1f;
-    private float targetGain = 1f, targetGainHF = 1f;
+    private float gain = 1f, gainLF = 1f, gainHF = 1f;
+    private float targetGain = 1f, targetGainLF = 1f, targetGainHF = 1f;
 
     public RedPermeatedSoundInstance(Identifier soundID, Sound sound, SoundSource category, Vec3 position, float volume, float pitch, SoundInstance wrapped, float permeationIndex, float attenuationMultiplier) {
         super(soundID, sound, category,position, volume, pitch, wrapped, attenuationMultiplier);
@@ -58,12 +58,14 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
      * Wavefront: switches this sound to physics mode and sets where its filter should head.
      * @param snap true to jump straight to the values (new sounds), false to glide (playing sounds)
      */
-    public void setBandGains(float newGain, float newGainHF, boolean snap) {
+    public void setBandGains(float newGain, float newGainLF, float newGainHF, boolean snap) {
         bandMode = true;
         targetGain = clamp(newGain, 0f, 1f);
+        targetGainLF = clamp(newGainLF, 0f, 1f);
         targetGainHF = clamp(newGainHF, 0f, 1f);
         if (snap) {
             gain = targetGain;
+            gainLF = targetGainLF;
             gainHF = targetGainHF;
         }
     }
@@ -71,7 +73,7 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
     /** Pushes the current filter settings to OpenAL, in whichever mode this sound uses. */
     public void applyFilter() {
         if (!sourceSet || !AL10.alIsSource(id)) return;
-        if (bandMode) fxHandler.applyBandGainsToSource(id, gain, gainHF);
+        if (bandMode) fxHandler.applyBandGainsToSource(id, gain, gainLF, gainHF);
         else fxHandler.applyMuffleToSource(id, 1 - permeationIndex);
     }
 
@@ -79,8 +81,10 @@ public class RedPermeatedSoundInstance extends RedTickableInstance {
         if (bandMode) {
             // Glide a fixed fraction of the way each tick so walking past a corner fades smoothly.
             gain += (targetGain - gain) * 0.35f;
+            gainLF += (targetGainLF - gainLF) * 0.35f;
             gainHF += (targetGainHF - gainHF) * 0.35f;
             if (Math.abs(targetGain - gain) < 0.002f) gain = targetGain;
+            if (Math.abs(targetGainLF - gainLF) < 0.002f) gainLF = targetGainLF;
             if (Math.abs(targetGainHF - gainHF) < 0.002f) gainHF = targetGainHF;
             applyFilter();
             return;

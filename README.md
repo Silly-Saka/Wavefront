@@ -9,6 +9,7 @@ Sound physics for Minecraft (Fabric 26.3). Walls muffle sound according to what 
 - **Occlusion from a block database.** 41 researched materials across 8 frequency bands, covering every 26.3 block. Loss depends on material and on how much solid the sound actually crosses, using real block shapes (slabs, stairs, doors).
 - **Partly open blocks.** Bars, chains, fences, grates and spawners let most sound through. Banners, torches, flowers and other non-solid blocks are ignored.
 - **Edge diffraction.** When the straight line is blocked, the mod finds routes through air, pulls them tight round the block edges, and applies the standard barrier formula per band. High notes lose more than low notes.
+- **Opening size.** A doorway or small hole only passes the sound that lands on it, so narrow gaps let less bass through than wide ones. Long passages are treated as guides, not holes.
 - **Sound direction.** A blocked sound appears to come from the edge or opening it travelled through.
 - **Voice chat.** Simple Voice Chat voices get the same treatment.
 - **Reverb.** Unchanged from Sound Physics Perfected.
@@ -21,8 +22,8 @@ Speed-of-sound delay, Doppler, air absorption, distinct echoes, underwater sound
 
 ## Known limits
 
-- OpenAL's built-in per-sound filter has two controls (overall gain and treble gain). The 8-band result is reduced to those two, so the tone shaping is coarser than the calculation behind it.
-- Opening size does not yet change how sound spreads after a gap.
+- OpenAL's built-in per-sound filter has three controls (overall gain, a bass cut and a treble cut). The 8-band result is reduced to those, so the tone shaping is coarser than the calculation behind it, and bass can be cut but never lifted.
+- A sound in plain view through an opening is treated as unobstructed; the opening's size only affects sounds that have to bend to reach you.
 - Defaults aim for realism: Wall Strength 1.0 and the Realism quality preset. Walls are strong (one stone block takes off about 35 dB), and the preset's performance cost has not been measured. The Balanced and Performance presets are lighter.
 - The game-facing code is new and has had little in-game testing.
 
@@ -38,7 +39,7 @@ The jar appears in `versions/26.3-fabric/build/libs/`. GitHub also builds it on 
 
 ## Checking the maths without Minecraft
 
-The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 68 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
+The acoustics code in `src/main/java/wavefront/acoustics` has no Minecraft imports. `dev/selftest/run.sh <path to a Gson jar>` compiles it and runs 83 checks: database values, thickness rules, the diffraction formula against hand calculations, and route finding in small test worlds (free-standing wall, doorway, balcony, sealed room).
 
 ## Editing the block database
 
