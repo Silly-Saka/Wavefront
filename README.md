@@ -8,6 +8,8 @@ The goal is to make Minecraft's audio behave a bit more like real sound.
 
 **Currently targeting Minecraft 26.3 on Fabric.**
 
+Wavefront is client-side only. It doesn't need to be installed on a server, and it requires [Fabric API](https://modrinth.com/mod/fabric-api) and [YetAnotherConfigLib](https://modrinth.com/mod/yacl). [Mod Menu](https://modrinth.com/mod/modmenu) is needed to open the settings screen.
+
 ## Features
 
 - **Sound occlusion** — Walls muffle sounds based on their materials and thickness. Stone, wood, wool, and other blocks affect sound differently.
@@ -20,7 +22,7 @@ The goal is to make Minecraft's audio behave a bit more like real sound.
 - **Sound through blocks** — Footsteps, pistons, explosions, and other impacts can travel through connected solid blocks.
 - **Modded block support** — Unknown blocks are assigned approximate acoustic properties based on their tags, sounds, and textures.
 - **Simple Voice Chat support** — Voice audio uses the same occlusion and diffraction calculations.
-- **Sound dots** — An optional accessibility view. Sounds leave marks on the floor and walls they reach, with a shape and colour for each kind of sound and more marks for louder ones. Nothing is drawn through walls. Inspired by Vercidium's ray-traced audio work.
+- **Sound dots** — An optional accessibility view that shows sounds as marks on the surfaces they reach. Different kinds of sound get different shapes and colours, and louder sounds leave more marks.
 
 Wavefront keeps Sound Physics Perfected's ray-traced reverb system while adding its own calculations for how sound travels through and around the world.
 
@@ -28,9 +30,11 @@ Wavefront keeps Sound Physics Perfected's ray-traced reverb system while adding 
 
 Settings are available through Mod Menu.
 
-There are four quality presets: Performance, Balanced, Realism, and Overkill. Individual settings can also be changed manually.
+There are four quality presets: Performance, Balanced, Realism, and Overkill. Individual settings can also be changed manually, which switches to a Custom preset.
 
-There are also debug options for displaying sound paths and the calculated bass field in-game.
+Sound dots have their own row in the settings and are off by default. They work in multiplayer, and nothing is drawn through walls.
+
+There are also debug options for displaying sound paths and the calculated bass field in-game. These draw through walls, so they only work in singleplayer.
 
 ## Current state
 
@@ -69,7 +73,7 @@ You can also download builds from the GitHub Actions artifacts when a build has 
 
 The acoustics code is mostly separated from Minecraft, so some calculations can be tested without launching the game.
 
-The repository includes self-tests for material values, diffraction, sound propagation, and bass simulation.
+The repository includes self-tests for material values, diffraction, sound propagation, bass simulation, and sound through blocks.
 
 Research notes and acoustic material data are available in `docs/research/`.
 
@@ -83,7 +87,7 @@ Sound Physics Perfected already uses ray tracing to simulate how sound interacts
 
 The original ray-traced reverb, sound interception, and voice chat integration are largely retained from Sound Physics Perfected.
 
-The ray-traced audio approach also draws from Vercidium's *A First Look At Raytraced Audio*.
+The ray-traced audio approach also draws from Vercidium's *A First Look At Raytraced Audio*, and the sound dots are based on his idea of showing sound for players who can't hear it.
 
 Wavefront's code was generated with AI assistance. The project is experimental and is being shared as-is.
 
@@ -91,4 +95,4 @@ Wavefront's code was generated with AI assistance. The project is experimental a
 
 Wavefront is licensed under **GPL-3.0-only**.
 
-The included Sound Physics Perfected code retains its original MIT license. See `LICENSE` and `LICENSE-Sound-Physics-Perfected.txt` for details.
+The included Sound Physics Perfected code retains its original MIT license. See `LICENSE` and `LICENSE-Sound-Physics-Perfected.txt` for details. Both are also included inside the JAR.
